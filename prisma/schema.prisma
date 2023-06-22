@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id             Int           @id @default(autoincrement())
+  username       String        @unique
+  password       String
+  role           String
+  email          String?       @unique
+  salary         Int?
+  designation    designation?  @relation(fields: [designation_id], references: [id])
+  designation_id Int?
+  join_date      DateTime?
+  leave_date     DateTime?
+  id_no          String?       @unique
+  department     String?
+  phone          String?       @unique
+  address        String?
+  blood_group    String?
+  image          String?
+  saleInvoice    saleInvoice[]
+  status         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model designation {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  user      user[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model product {
+  id                           Int                            @id @default(autoincrement())
+  name                         String                         @unique
+  quantity                     Int
+  purchase_price               Float
+  sale_price                   Float
+  imageName                    String?
+  product_category_id          Int?
+  unit_measurement             Float?
+  unit_type                    String?
+  sku                          String?                        @unique
+  reorder_quantity             Int?
+  status                       Boolean                        @default(true)
+  purchaseInvoiceProduct       purchaseInvoiceProduct[]
+  saleInvoiceProduct           saleInvoiceProduct[]
+  returnPurchaseInvoiceProduct returnPurchaseInvoiceProduct[]
+  returnSaleInvoiceProduct     returnSaleInvoiceProduct[]
+  product_category             product_category?              @relation(fields: [product_category_id], references: [id])
+  created_at                   DateTime                       @default(now())
+  updated_at                   DateTime                       @updatedAt
+}
+
+model product_category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  product   product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model supplier {
+  id              Int               @id @default(autoincrement())
+  name            String
+  phone           String            @unique
+  address         String
+  status          Boolean           @default(true)
+  purchaseInvoice purchaseInvoice[]
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+}
+
+model purchaseInvoice {
+  id                     Int                      @id @default(autoincrement())
+  date                   DateTime
+  total_amount           Float
+  discount               Float
+  paid_amount            Float
+  due_amount             Float
+  supplier               supplier                 @relation(fields: [supplier_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  supplier_id            Int
+  note                   String?
+  supplier_memo_no       String?
+  purchaseInvoiceProduct purchaseInvoiceProduct[]
+  returnPurchaseInvoice  returnPurchaseInvoice[]
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime                 @updatedAt
+}
+
+model purchaseInvoiceProduct {
+  id                     Int             @id @default(autoincrement())
+  product                product         @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product_id             Int
+  invoice                purchaseInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  invoice_id             Int
+  product_quantity       Int
+  product_purchase_price Float
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+}
+
+model customer {
+  id          Int           @id @default(autoincrement())
+  name        String
+  phone       String        @unique
+  address     String
+  status      Boolean       @default(true)
+  saleInvoice saleInvoice[]
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+}
+
+model saleInvoice {
+  id                 Int                  @id @default(autoincrement())
+  date               DateTime
+  total_amount       Float
+  discount           Float
+  paid_amount        Float
+  due_amount         Float
+  profit             Float
+  customer           customer             @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customer_id        Int
+  user               user                 @relation(fields: [user_id], references: [id])
+  user_id            Int
+  note               String?
+  saleInvoiceProduct saleInvoiceProduct[]
+  returnSaleInvoice  returnSaleInvoice[]
+  created_at         DateTime             @default(now())
+  updated_at         DateTime             @updatedAt
+}
+
+model saleInvoiceProduct {
+  id                 Int         @id @default(autoincrement())
+  product            product     @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product_id         Int
+  invoice            saleInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  invoice_id         Int
+  product_quantity   Int
+  product_sale_price Float
+  created_at         DateTime    @default(now())
+  updated_at         DateTime    @updatedAt
+}
+
+model transaction {
+  id          Int        @id @default(autoincrement())
+  date        DateTime
+  debit       subAccount @relation("debit", fields: [debit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  debit_id    Int
+  credit      subAccount @relation("credit", fields: [credit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  credit_id   Int
+  particulars String
+  amount      Float
+  type        String?
+  related_id  Int?
+  status      Boolean    @default(true)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+}
+
+model role {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  status         Boolean          @default(true)
+  rolePermission rolePermission[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model permission {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  rolePermission rolePermission[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+// role_id and permission_id are composite unique keys
+model rolePermission {
+  id            Int        @id @default(autoincrement())
+  role          role       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  role_id       Int
+  permission    permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  permission_id Int
+  status        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([role_id, permission_id])
+}
+
+model account {
+  id         Int          @id @default(autoincrement())
+  name       String       @unique
+  type       String
+  subAccount subAccount[]
+}
+
+model subAccount {
+  id         Int           @id @default(autoincrement())
+  name       String        @unique
+  account    account       @relation(fields: [account_id], references: [id])
+  account_id Int
+  debit      transaction[] @relation("debit")
+  credit     transaction[] @relation("credit")
+  status     Boolean       @default(true)
+}
+
+model returnPurchaseInvoice {
+  id                           Int                            @id @default(autoincrement())
+  date                         DateTime
+  total_amount                 Float
+  note                         String?
+  purchaseInvoice              purchaseInvoice                @relation(fields: [purchaseInvoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  purchaseInvoice_id           Int
+  status                       Boolean                        @default(true)
+  returnPurchaseInvoiceProduct returnPurchaseInvoiceProduct[]
+  created_at                   DateTime                       @default(now())
+  updated_at                   DateTime                       @updatedAt
+}
+
+model returnPurchaseInvoiceProduct {
+  id                     Int                   @id @default(autoincrement())
+  product                product               @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product_id             Int
+  invoice                returnPurchaseInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  invoice_id             Int
+  product_quantity       Int
+  product_purchase_price Float
+  created_at             DateTime              @default(now())
+  updated_at             DateTime              @updatedAt
+}
+
+model returnSaleInvoice {
+  id                       Int                        @id @default(autoincrement())
+  date                     DateTime
+  total_amount             Float
+  note                     String?
+  saleInvoice              saleInvoice                @relation(fields: [saleInvoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  saleInvoice_id           Int
+  status                   Boolean                    @default(true)
+  returnSaleInvoiceProduct returnSaleInvoiceProduct[]
+  created_at               DateTime                   @default(now())
+  updated_at               DateTime                   @updatedAt
+}
+
+model returnSaleInvoiceProduct {
+  id                 Int               @id @default(autoincrement())
+  product            product           @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product_id         Int
+  invoice            returnSaleInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  invoice_id         Int
+  product_quantity   Int
+  product_sale_price Float
+  created_at         DateTime          @default(now())
+  updated_at         DateTime          @updatedAt
+}
+
+model appSetting {
+  id           Int    @id @default(autoincrement())
+  company_name String
+  tag_line     String
+  address      String
+  phone        String
+  email        String
+  website      String
+  footer       String
+}
