@@ -1,1 +1,3 @@
 /node_modules
+/prisma/migrations
+/routes/inventory/product/uploads
