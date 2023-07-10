@@ -73,10 +73,10 @@ const getDashboardData = async (req, res) => {
 		});
 		// format response data for data visualization chart in antd
 		const formattedData4 = [
-			{ type: "sales", value: Number(salesInfo._sum.total_amount) },
+			{ type: "vente", value: Number(salesInfo._sum.total_amount) },
 		];
 		const formattedData5 = [
-			{ type: "purchases", value: Number(purchasesInfo._sum.total_amount) },
+			{ type: "achat", value: Number(purchasesInfo._sum.total_amount) },
 		];
 		const SupplierVSCustomer = formattedData4.concat(formattedData5);
 		//==================================customerSaleProfit===============================================
@@ -105,7 +105,7 @@ const getDashboardData = async (req, res) => {
 				});
 				const formattedData = {
 					label: customer.name,
-					type: "Sales",
+					type: "vente",
 					value: item._sum.total_amount,
 				};
 				return formattedData;
