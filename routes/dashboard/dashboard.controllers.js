@@ -30,7 +30,7 @@ const getDashboardData = async (req, res) => {
 		// format response data for data visualization chart in antd
 		const formattedData1 = allSaleInvoice.map((item) => {
 			return {
-				type: "Sales",
+				type: "Ventes",
 				date: item.date.toISOString().split("T")[0],
 				amount: item._sum.total_amount,
 			};
@@ -44,7 +44,7 @@ const getDashboardData = async (req, res) => {
 		});
 		const formattedData3 = allSaleInvoice.map((item) => {
 			return {
-				type: "Invoice Count",
+				type: "nombre de facture",
 				date: item.date.toISOString().split("T")[0],
 				amount: item._count.id,
 			};
