@@ -35,6 +35,9 @@ const app = express();
 let allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5000",
+  "https://erp-os-frontend.vercel.app/",
+  "http://192.168.1.176:3000",
+  "http://192.168.1.176:5000",
 ];
 
 // limit the number of requests from a single IP address
