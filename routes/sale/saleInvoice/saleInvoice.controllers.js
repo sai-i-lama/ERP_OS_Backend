@@ -50,8 +50,8 @@ const createSingleSaleInvoice = async (req, res) => {
         user: {
           connect: {
             id: Number(req.body.user_id),
-          },
         },
+         },
         note: req.body.note,
         // map and save all products from request body array of products
         saleInvoiceProduct: {
@@ -195,6 +195,7 @@ const getAllSaleInvoice = async (req, res) => {
                   select: {
                     id: true,
                     name: true,
+                    type_customer: true,
                   },
                 },
                 user: {
@@ -252,6 +253,7 @@ const getAllSaleInvoice = async (req, res) => {
                   select: {
                     id: true,
                     name: true,
+                    type_customer: true,
                   },
                 },
                 user: {
@@ -312,6 +314,7 @@ const getAllSaleInvoice = async (req, res) => {
                   select: {
                     id: true,
                     name: true,
+                    type_customer: true,
                   },
                 },
                 user: {
@@ -367,6 +370,7 @@ const getAllSaleInvoice = async (req, res) => {
                   select: {
                     id: true,
                     name: true,
+                    type_customer: true,
                   },
                 },
                 user: {
