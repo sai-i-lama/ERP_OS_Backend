@@ -36,6 +36,7 @@ const createSingleProduct = async (req, res) => {
           purchase_price: parseFloat(item.purchase_price),
           sale_price: parseFloat(item.sale_price),
           product_category_id: parseInt(item.product_category_id),
+          idSupplier: parseInt(item.idSupplier),
           sku: item.sku,
           unit_measurement: parseFloat(item.unit_measurement),
           unit_type: item.unit_type,
@@ -79,6 +80,11 @@ const createSingleProduct = async (req, res) => {
               id: Number(req.body.product_category_id),
             },
           },
+          supplier: {
+            connect : {
+              id: Number(req.body.idSupplier),
+            },
+          },
           sku: req.body.sku,
           unit_measurement: parseFloat(req.body.unit_measurement),
           unit_type: req.body.unit_type,
@@ -114,6 +120,11 @@ const getAllProduct = async (req, res) => {
         },
         include: {
           product_category: {
+            select: {
+              name: true,
+            },
+          },
+          supplier: {
             select: {
               name: true,
             },
@@ -155,6 +166,11 @@ const getAllProduct = async (req, res) => {
         },
         include: {
           product_category: {
+            select: {
+              name: true,
+            },
+          },
+          supplier: {
             select: {
               name: true,
             },
@@ -209,6 +225,11 @@ const getAllProduct = async (req, res) => {
               name: true,
             },
           },
+          supplier: {
+            select: {
+              name: true,
+            },
+          },
         },
         skip: Number(skip),
         take: Number(limit),
@@ -236,6 +257,11 @@ const getAllProduct = async (req, res) => {
         },
         include: {
           product_category: {
+            select: {
+              name: true,
+            },
+          },
+          supplier: {
             select: {
               name: true,
             },
