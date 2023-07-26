@@ -45,6 +45,8 @@ model product {
   purchase_price               Float
   sale_price                   Float
   imageName                    String?
+  supplier                     supplier    @relation(fields: [idSupplier], references: [id])
+  idSupplier                   Int
   product_category_id          Int?
   unit_measurement             Float?
   unit_type                    String?
@@ -75,6 +77,7 @@ model supplier {
   address         String
   status          Boolean           @default(true)
   purchaseInvoice purchaseInvoice[]
+  product         product[]
   created_at      DateTime          @default(now())
   updated_at      DateTime          @updatedAt
 }
@@ -114,6 +117,7 @@ model customer {
   phone       String        @unique
   address     String
   status      Boolean       @default(true)
+  type_customer String
   saleInvoice saleInvoice[]
   created_at  DateTime      @default(now())
   updated_at  DateTime      @updatedAt
