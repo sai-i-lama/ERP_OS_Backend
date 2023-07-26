@@ -1,5 +1,5 @@
 const { getPagination } = require("../../../utils/query");
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, typCat } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const createSingleCustomer = async (req, res) => {
@@ -27,6 +27,7 @@ const createSingleCustomer = async (req, res) => {
             name: customer.name,
             phone: customer.phone,
             address: customer.address,
+            type_customer: customer.type_customer,
           };
         }),
         skipDuplicates: true,
@@ -44,6 +45,7 @@ const createSingleCustomer = async (req, res) => {
           name: req.body.name,
           phone: req.body.phone,
           address: req.body.address,
+          type_customer: req.body.type_customer,
         },
       });
       res.json(createdCustomer);
@@ -370,6 +372,7 @@ const updateSingleCustomer = async (req, res) => {
         name: req.body.name,
         phone: req.body.phone,
         address: req.body.address,
+        type_customer: req.body.type_customer,
       },
     });
     res.json(updatedCustomer);

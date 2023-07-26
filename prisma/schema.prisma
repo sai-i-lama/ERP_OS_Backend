@@ -114,6 +114,7 @@ model customer {
   phone       String        @unique
   address     String
   status      Boolean       @default(true)
+  type_customer typCat
   saleInvoice saleInvoice[]
   created_at  DateTime      @default(now())
   updated_at  DateTime      @updatedAt
@@ -273,4 +274,10 @@ model appSetting {
   email        String
   website      String
   footer       String
+}
+
+enum typCat{
+GROSSISTE
+PARTICULIER
+SPA
 }

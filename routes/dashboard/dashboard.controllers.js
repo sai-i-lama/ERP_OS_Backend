@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 const getDashboardData = async (req, res) => {
 	try {
-		//==================================saleProfitCount===============================================
+		//==================================Ventes vs bénéfices===============================================
 		// get all sale invoice by group
 		const allSaleInvoice = await prisma.saleInvoice.groupBy({
 			orderBy: {
@@ -37,7 +37,7 @@ const getDashboardData = async (req, res) => {
 		});
 		const formattedData2 = allSaleInvoice.map((item) => {
 			return {
-				type: "Profit",
+				type: "Profits",
 				date: item.date.toISOString().split("T")[0],
 				amount: item._sum.profit,
 			};
@@ -53,36 +53,52 @@ const getDashboardData = async (req, res) => {
 		const saleProfitCount = formattedData1
 			.concat(formattedData2)
 			.concat(formattedData3);
-		//==================================PurchaseVSSale===============================================
+		//==================================Ventes Spa et Ventes Btq===============================================
 		// get all customer due amount
-		const salesInfo = await prisma.saleInvoice.aggregate({
+		const salesInfoSpa = await prisma.saleInvoice.aggregate({
 			_count: {
 				id: true,
 			},
 			_sum: {
 				total_amount: true,
 			},
+			where: {
+				customer: {
+					type_customer: "SPA",
+				},
+			},
+			
 		});
-		const purchasesInfo = await prisma.purchaseInvoice.aggregate({
+		const salesInfoBtq = await prisma.saleInvoice.aggregate({
 			_count: {
 				id: true,
 			},
 			_sum: {
 				total_amount: true,
+			},
+			where: {
+				customer: {
+					type_customer: {
+						in: ["PARTICULIER","GROSSISTE"],
+					},
+				},
 			},
 		});
 		// format response data for data visualization chart in antd
 		const formattedData4 = [
-			{ type: "vente", value: Number(salesInfo._sum.total_amount) },
+			{ type: "ventes Spa", value: Number(salesInfoSpa._sum.total_amount) },
 		];
 		const formattedData5 = [
-			{ type: "achat", value: Number(purchasesInfo._sum.total_amount) },
+			{ type: "ventes Boutique", value: Number(salesInfoBtq._sum.total_amount) },
 		];
 		const SupplierVSCustomer = formattedData4.concat(formattedData5);
 		//==================================customerSaleProfit===============================================
 		// get all sale invoice by group
 		const allSaleInvoiceByGroup = await prisma.saleInvoice.groupBy({
-			by: ["customer_id"],
+			by: ["customer_id","total_amount"],
+			orderBy:{
+				total_amount: "desc",
+			},
 			_sum: {
 				total_amount: true,
 				profit: true,
@@ -105,7 +121,7 @@ const getDashboardData = async (req, res) => {
 				});
 				const formattedData = {
 					label: customer.name,
-					type: "vente",
+					type: "ventes",
 					value: item._sum.total_amount,
 				};
 				return formattedData;
@@ -118,7 +134,7 @@ const getDashboardData = async (req, res) => {
 				});
 				return {
 					label: customer.name,
-					type: "Profit",
+					type: "Profits",
 					value: item._sum.profit,
 				};
 			})
