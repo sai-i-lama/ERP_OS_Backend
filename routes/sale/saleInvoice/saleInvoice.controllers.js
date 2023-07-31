@@ -669,7 +669,7 @@ const getSingleSaleInvoice = async (req, res) => {
       (acc, curr) => acc + curr.amount,
       0
     );
-    let status = "UNPAID";
+    let status = "INPAYÉ";
     // sum total amount of all transactions
     const totalPaidAmount = transactions2.reduce(
       (acc, item) => acc + item.amount,
@@ -699,7 +699,7 @@ const getSingleSaleInvoice = async (req, res) => {
       totalReturnAmount +
       paidAmountReturn;
     if (dueAmount === 0) {
-      status = "PAID";
+      status = "PAYÉ";
     }
     // calculate total unit_measurement
     const totalUnitMeasurement = singleSaleInvoice.saleInvoiceProduct.reduce(
