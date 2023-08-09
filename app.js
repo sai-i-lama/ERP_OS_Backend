@@ -4,6 +4,7 @@ const express = require("express");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cors = require("cors");
+const twilio = require("twilio");
 const paymentPurchaseInvoiceRoutes = require("./routes/purchase/paymentPurchaseInvoice/paymentPurchaseInvoice.routes");
 const paymentSaleInvoiceRoutes = require("./routes/sale/paymentSaleInvoice/paymentSaleInvoice.routes");
 const returnSaleInvoiceRoutes = require("./routes/sale/returnSaleInvoice/returnSaleInvoice.routes");
@@ -26,7 +27,6 @@ const designationRoutes = require("./routes/hr/designation/designation.routes");
 const productCategoryRoutes = require("./routes/inventory/productCategory/productCategory.routes");
 const accountRoutes = require("./routes/accounting/account/account.routes");
 const settingRoutes = require("./routes/setting/setting.routes");
-
 /* variables */
 // express app instance
 const app = express();
@@ -72,6 +72,13 @@ app.use(
   })
 );
 
+// Twilio configuration
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+const client = twilio(accountSid, authToken);
+
 // parse requests of content-type - application/json
 app.use(express.json({ extended: true }));
 
@@ -96,5 +103,23 @@ app.use("/v1/designation", designationRoutes);
 app.use("/v1/product-category", productCategoryRoutes);
 app.use("/v1/account", accountRoutes);
 app.use("/v1/setting", settingRoutes);
+
+// Send SMS route
+app.post("/v1/send-sms", async (req, res) => {
+  const { customerId, message } = req.body;
+
+  try {
+    const response = await client.messages.create({
+      body: message,
+      from: twilioPhoneNumber,
+      to: customerId,
+    });
+    console.log("SMS sent successfully!", response.sid);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error sending SMS:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 module.exports = app;
