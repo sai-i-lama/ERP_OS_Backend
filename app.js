@@ -27,6 +27,8 @@ const designationRoutes = require("./routes/hr/designation/designation.routes");
 const productCategoryRoutes = require("./routes/inventory/productCategory/productCategory.routes");
 const accountRoutes = require("./routes/accounting/account/account.routes");
 const settingRoutes = require("./routes/setting/setting.routes");
+const smsRoutes = require("./routes/sms/sms.routes");
+const smsRouter = require("./routes/sms/sms.routes");
 /* variables */
 // express app instance
 const app = express();
@@ -103,7 +105,7 @@ app.use("/v1/designation", designationRoutes);
 app.use("/v1/product-category", productCategoryRoutes);
 app.use("/v1/account", accountRoutes);
 app.use("/v1/setting", settingRoutes);
-
+app.use("/v1/sms", smsRouter);
 // Send SMS route
 app.post("/v1/send-sms", async (req, res) => {
   const { customerId, message } = req.body;
