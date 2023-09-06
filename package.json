@@ -9,7 +9,7 @@
     "watch": "nodemon server.js",
     "precommit": "pretty-quick --staged",
     "new": "yarn prisma migrate dev && yarn prisma db seed && yarn start",
-    "deploy": "yarn prisma migrate deploy && yarn prisma db seed && yarn start"
+    "deploy": "npx prisma migrate status --json | grep '\"executedAt\":null' >/dev/null 2>&1 && yarn prisma migrate deploy --skip-generate && npx prisma db seed --preview-feature && yarn start"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
