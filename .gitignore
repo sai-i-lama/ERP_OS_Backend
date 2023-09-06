@@ -1,4 +1,4 @@
 /node_modules
-/prisma/migrations
+# /prisma/migrations
 /routes/inventory/product/uploads
 .env
