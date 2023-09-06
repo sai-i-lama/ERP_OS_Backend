@@ -48,7 +48,7 @@ Without installing Node.js you can’t use the yarn command. So be sure that Nod
 
 3. You will find a `.env` file in the root directory of the backend ‘ERP_OS_Backend’ and set appropriate values for all the variables. To do this you have to edit the `.env` file and change all the variables accordingly. The `.env` file will look like this below:
 4. JWT_SECRET = #type your secret word here#
-`
+```
 Example: JWT_SECRET = my-secret
 
 DATABASE_URL= # type your database information here. see below example#
@@ -61,7 +61,7 @@ HOST = #For Image Host#
 Example: HOST = http://localhost
 NODE_ENV = #runnig environment#
 Example: NODE_ENV = development
-`
+```
 4. Type command: `yarn prisma migrate dev`
 
 It will create the required database table and data in the PostgreSQL database that you have installed previously. Your admin and login data will be generated in this step.
