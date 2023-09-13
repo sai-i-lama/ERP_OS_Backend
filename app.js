@@ -4,6 +4,7 @@ const express = require("express");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cors = require("cors");
+const mime = require('mime');
 
 const paymentPurchaseInvoiceRoutes = require("./routes/purchase/paymentPurchaseInvoice/paymentPurchaseInvoice.routes");
 const paymentSaleInvoiceRoutes = require("./routes/sale/paymentSaleInvoice/paymentSaleInvoice.routes");
@@ -27,7 +28,6 @@ const designationRoutes = require("./routes/hr/designation/designation.routes");
 const productCategoryRoutes = require("./routes/inventory/productCategory/productCategory.routes");
 const accountRoutes = require("./routes/accounting/account/account.routes");
 const settingRoutes = require("./routes/setting/setting.routes");
-const smsRoutes = require("./routes/sms/sms.routes");
 const smsRouter = require("./routes/sms/sms.routes");
 /* variables */
 // express app instance
@@ -73,6 +73,15 @@ app.use(
     },
   })
 );
+
+// Serve JavaScript files with the correct MIME type
+app.use((req, res, next) => {
+  if (req.url.endsWith('.js')) {
+    res.setHeader('Content-Type', 'application/javascript');
+  }
+  next();
+});
+
 
 // parse requests of content-type - application/json
 app.use(express.json({ extended: true }));
