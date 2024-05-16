@@ -3,7 +3,7 @@ const https = require("https");
 const app = require("./app");
 require("dotenv").config();
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 console.log(process.env.NODE_ENV);
 

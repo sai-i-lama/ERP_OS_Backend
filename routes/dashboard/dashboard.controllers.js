@@ -64,7 +64,7 @@ const getDashboardData = async (req, res) => {
 			},
 			where: {
 				customer: {
-					type_customer: "SPA",
+					type_customer: "spa",
 				},
 			},
 			
@@ -79,7 +79,7 @@ const getDashboardData = async (req, res) => {
 			where: {
 				customer: {
 					type_customer: {
-						in: ["PARTICULIER","GROSSISTE"],
+						in: ["particulier","professionnel"],
 					},
 				},
 			},
