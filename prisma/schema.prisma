@@ -25,6 +25,7 @@ model user {
   blood_group    String?
   image          String?
   saleInvoice    saleInvoice[]
+  customer customer?
   status         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -119,6 +120,8 @@ model customer {
   status      Boolean       @default(true)
   type_customer typCat
   saleInvoice saleInvoice[]
+  user         user @relation(fields: [userId], references: [id])
+  userId       Int @unique
   created_at  DateTime      @default(now())
   updated_at  DateTime      @updatedAt
 }
@@ -280,7 +283,7 @@ model appSetting {
 }
 
 enum typCat{
-GROSSISTE
-PARTICULIER
-SPA
+professionnel
+particulier
+spa
 }

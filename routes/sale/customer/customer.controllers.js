@@ -1,6 +1,8 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient, typCat } = require("@prisma/client");
 const prisma = new PrismaClient();
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const createSingleCustomer = async (req, res) => {
   if (req.query.query === "deletemany") {
@@ -9,9 +11,9 @@ const createSingleCustomer = async (req, res) => {
       const deletedAccount = await prisma.customer.deleteMany({
         where: {
           id: {
-            in: req.body.map((id) => parseInt(id)),
-          },
-        },
+            in: req.body.map((id) => parseInt(id))
+          }
+        }
       });
       res.json(deletedAccount);
     } catch (error) {
@@ -27,10 +29,10 @@ const createSingleCustomer = async (req, res) => {
             name: customer.name,
             phone: customer.phone,
             address: customer.address,
-            type_customer: customer.type_customer,
+            type_customer: customer.type_customer
           };
         }),
-        skipDuplicates: true,
+        skipDuplicates: true
       });
       res.json(createdCustomer);
     } catch (error) {
@@ -39,14 +41,31 @@ const createSingleCustomer = async (req, res) => {
     }
   } else {
     try {
-      // create single customer from an object
+      // Créer l'utilisateur associé au client avec les mêmes informations
+      const hash = await bcrypt.hash("professionnel", saltRounds);
+
+      const createUser = await prisma.user.create({
+        data: {
+          username: req.body.name,
+          password: hash,
+          role:req.body.type_customer,
+          email: req.body.email,
+          id_no: req.body.id_no,
+          phone: req.body.phone,
+          address: req.body.address,
+          image: req.body.image,
+          status: req.body.status,
+        }
+      });
+      // Créer le client
       const createdCustomer = await prisma.customer.create({
         data: {
           name: req.body.name,
           phone: req.body.phone,
           address: req.body.address,
           type_customer: req.body.type_customer,
-        },
+          userId: createUser.id,
+        }
       });
       res.json(createdCustomer);
     } catch (error) {
@@ -62,11 +81,11 @@ const getAllCustomer = async (req, res) => {
       // get all customer
       const allCustomer = await prisma.customer.findMany({
         orderBy: {
-          id: "asc",
+          id: "asc"
         },
         include: {
-          saleInvoice: true,
-        },
+          saleInvoice: true
+        }
       });
       res.json(allCustomer);
     } catch (error) {
@@ -77,11 +96,11 @@ const getAllCustomer = async (req, res) => {
     // get all customer info
     const aggregations = await prisma.customer.aggregate({
       _count: {
-        id: true,
+        id: true
       },
       where: {
-        status: true,
-      },
+        status: true
+      }
     });
     res.json(aggregations);
   } else if (req.query.status === "false") {
@@ -90,16 +109,16 @@ const getAllCustomer = async (req, res) => {
       // get all customer
       const allCustomer = await prisma.customer.findMany({
         orderBy: {
-          id: "asc",
+          id: "asc"
         },
         include: {
-          saleInvoice: true,
+          saleInvoice: true
         },
         where: {
-          status: false,
+          status: false
         },
         skip: parseInt(skip),
-        take: parseInt(limit),
+        take: parseInt(limit)
       });
       res.json(allCustomer);
     } catch (error) {
@@ -112,16 +131,16 @@ const getAllCustomer = async (req, res) => {
       // get all customer paginated
       const allCustomer = await prisma.customer.findMany({
         orderBy: {
-          id: "asc",
+          id: "asc"
         },
         skip: parseInt(skip),
         take: parseInt(limit),
         include: {
-          saleInvoice: true,
+          saleInvoice: true
         },
         where: {
-          status: true,
-        },
+          status: true
+        }
       });
       res.json(allCustomer);
     } catch (error) {
@@ -135,39 +154,39 @@ const getSingleCustomer = async (req, res) => {
   try {
     const singleCustomer = await prisma.customer.findUnique({
       where: {
-        id: parseInt(req.params.id),
+        id: parseInt(req.params.id)
       },
       include: {
-        saleInvoice: true,
-      },
+        saleInvoice: true
+      }
     });
 
     // get individual customer's due amount by calculating: sale invoice's total_amount - return sale invoices - transactions
     const allSaleInvoiceTotalAmount = await prisma.saleInvoice.aggregate({
       _sum: {
         total_amount: true,
-        discount: true,
+        discount: true
       },
       where: {
-        customer_id: parseInt(req.params.id),
-      },
+        customer_id: parseInt(req.params.id)
+      }
     });
     // all invoice of a customer with return sale invoice nested
     const customersAllInvoice = await prisma.customer.findUnique({
       where: {
-        id: parseInt(req.params.id),
+        id: parseInt(req.params.id)
       },
       include: {
         saleInvoice: {
           include: {
             returnSaleInvoice: {
               where: {
-                status: true,
-              },
-            },
-          },
-        },
-      },
+                status: true
+              }
+            }
+          }
+        }
+      }
     });
     // get all return sale invoice of a customer
     const allReturnSaleInvoice = customersAllInvoice.saleInvoice.map(
@@ -198,80 +217,80 @@ const getSingleCustomer = async (req, res) => {
       where: {
         type: "sale",
         related_id: {
-          in: allSaleInvoiceId,
+          in: allSaleInvoiceId
         },
         OR: [
           {
-            debit_id: 1,
+            debit_id: 1
           },
           {
-            debit_id: 2,
-          },
-        ],
+            debit_id: 2
+          }
+        ]
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     // get all transactions related to return saleInvoice
     const allReturnSaleTransaction = await prisma.transaction.findMany({
       where: {
         type: "sale_return",
         related_id: {
-          in: allSaleInvoiceId,
+          in: allSaleInvoiceId
         },
         OR: [
           {
-            credit_id: 1,
+            credit_id: 1
           },
           {
-            credit_id: 2,
-          },
-        ],
+            credit_id: 2
+          }
+        ]
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     // calculate the discount given amount at the time of make the payment
     const discountGiven = await prisma.transaction.findMany({
       where: {
         type: "sale",
         related_id: {
-          in: allSaleInvoiceId,
+          in: allSaleInvoiceId
         },
-        debit_id: 14,
+        debit_id: 14
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     const totalPaidAmount = allSaleTransaction.reduce((acc, cur) => {
       return acc + cur.amount;
@@ -286,21 +305,21 @@ const getSingleCustomer = async (req, res) => {
     const allTransaction = await prisma.transaction.findMany({
       where: {
         related_id: {
-          in: allSaleInvoiceId,
-        },
+          in: allSaleInvoiceId
+        }
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     console.log("total_amount", allSaleInvoiceTotalAmount._sum.total_amount);
     console.log("discount", allSaleInvoiceTotalAmount._sum.discount);
@@ -349,7 +368,7 @@ const getSingleCustomer = async (req, res) => {
           paidAmount -
           returnAmount +
           paidAmountReturn -
-          singleDiscountGiven,
+          singleDiscountGiven
       };
     });
     singleCustomer.saleInvoice = await Promise.all(updatedInvoices);
@@ -366,14 +385,14 @@ const updateSingleCustomer = async (req, res) => {
   try {
     const updatedCustomer = await prisma.customer.update({
       where: {
-        id: parseInt(req.params.id),
+        id: parseInt(req.params.id)
       },
       data: {
         name: req.body.name,
         phone: req.body.phone,
         address: req.body.address,
-        type_customer: req.body.type_customer,
-      },
+        type_customer: req.body.type_customer
+      }
     });
     res.json(updatedCustomer);
   } catch (error) {
@@ -386,11 +405,11 @@ const deleteSingleCustomer = async (req, res) => {
   try {
     const deletedCustomer = await prisma.customer.update({
       where: {
-        id: parseInt(req.params.id),
+        id: parseInt(req.params.id)
       },
       data: {
-        status: req.body.status,
-      },
+        status: req.body.status
+      }
     });
     res.json(deletedCustomer);
   } catch (error) {
@@ -404,5 +423,5 @@ module.exports = {
   getAllCustomer,
   getSingleCustomer,
   updateSingleCustomer,
-  deleteSingleCustomer,
+  deleteSingleCustomer
 };

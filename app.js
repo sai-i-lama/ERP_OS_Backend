@@ -35,8 +35,9 @@ const app = express();
 
 // holds all the allowed origins for cors access
 let allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:5000",
+  "http://localhost:3001",
+  "http://localhost:5001",
+  "http://localhost:8000",
   "https://erp-os-frontend.vercel.app/",
   "http://192.168.1.176:3000",
   "http://192.168.1.176:5000",
