@@ -92,7 +92,7 @@ const permissions = [
   "viewUser",
   "updateUser",
   "deleteUser",
-
+  "professionalUser",
   "viewDashboard",
 
   "viewPermission",
@@ -123,7 +123,7 @@ const permissions = [
 
 const roles = ["admin", "staff", "professionnel"];
 
-const account = [
+const accounts = [
   { name: "Asset", type: "Asset" },
   { name: "Liability", type: "Liability" },
   { name: "Capital", type: "Owner's Equity" },
@@ -132,7 +132,7 @@ const account = [
   { name: "Expense", type: "Owner's Equity" },
 ];
 
-const subAccount = [
+const subAccounts = [
   { account_id: 1, name: "Cash" }, //1
   { account_id: 1, name: "Bank" }, //2
   { account_id: 1, name: "Inventory" }, //3
@@ -159,62 +159,149 @@ const settings = {
   tag_line: "votre sante c'est notre interest",
 };
 
+const professionalPermissions = [
+  "professionalUser", "viewSaleInvoice", "viewProduct", "viewProductCategory", 
+  "viewCustomer", "createSaleInvoice", "viewDashboard"
+];
+
 async function main() {
   const adminHash = await bcrypt.hash("admin", saltRounds);
   const staffHash = await bcrypt.hash("staff", saltRounds);
-  await prisma.user.create({
-    data: {
-      username: "admin",
-      password: adminHash,
-      role: "admin",
-    },
+
+  // Check if admin user exists
+  const adminUser = await prisma.user.findUnique({
+    where: { username: "admin" }
   });
-  await prisma.user.create({
-    data: {
-      username: "staff",
-      password: staffHash,
-      role: "staff",
-    },
-  });
-  await prisma.permission.createMany({
-    data: permissions.map((permission) => {
-      return {
-        name: permission,
-      };
-    }),
-  });
-  await prisma.role.createMany({
-    data: roles.map((role) => {
-      return {
-        name: role,
-      };
-    }),
-  });
-  for (let i = 1; i <= permissions.length; i++) {
-    await prisma.rolePermission.create({
+
+  if (!adminUser) {
+    await prisma.user.create({
       data: {
-        role: {
-          connect: {
-            id: 1,
-          },
-        },
-        permission: {
-          connect: {
-            id: i,
-          },
-        },
+        username: "admin",
+        password: adminHash,
+        role: "admin",
       },
     });
   }
-  await prisma.account.createMany({
-    data: account,
+
+  // Check if staff user exists
+  const staffUser = await prisma.user.findUnique({
+    where: { username: "staff" }
   });
-  await prisma.subAccount.createMany({
-    data: subAccount,
+
+  if (!staffUser) {
+    await prisma.user.create({
+      data: {
+        username: "staff",
+        password: staffHash,
+        role: "staff",
+      },
+    });
+  }
+
+  // Check and insert permissions
+  for (const permission of permissions) {
+    const existingPermission = await prisma.permission.findUnique({
+      where: { name: permission }
+    });
+    if (!existingPermission) {
+      await prisma.permission.create({
+        data: { name: permission }
+      });
+    }
+  }
+
+  // Check and insert roles
+  for (const role of roles) {
+    const existingRole = await prisma.role.findUnique({
+      where: { name: role }
+    });
+    if (!existingRole) {
+      await prisma.role.create({
+        data: { name: role }
+      });
+    }
+  }
+
+  // Assign permissions to the admin role
+  const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
+  if (adminRole) {
+    for (const permission of permissions) {
+      const existingRolePermission = await prisma.rolePermission.findUnique({
+        where: {
+          role_id_permission_id: {
+            role_id: adminRole.id,
+            permission_id: (await prisma.permission.findUnique({ where: { name: permission } })).id
+          }
+        }
+      });
+      if (!existingRolePermission) {
+        await prisma.rolePermission.create({
+          data: {
+            role_id: adminRole.id,
+            permission_id: (await prisma.permission.findUnique({ where: { name: permission } })).id
+          }
+        });
+      }
+    }
+  }
+
+  // Assign specific permissions to the professional role
+  const professionalRole = await prisma.role.findUnique({ where: { name: "professionnel" } });
+  if (professionalRole) {
+    for (const permission of professionalPermissions) {
+      const permissionId = (await prisma.permission.findUnique({ where: { name: permission } })).id;
+      const existingRolePermission = await prisma.rolePermission.findUnique({
+        where: {
+          role_id_permission_id: {
+            role_id: professionalRole.id,
+            permission_id: permissionId
+          }
+        }
+      });
+      if (!existingRolePermission) {
+        await prisma.rolePermission.create({
+          data: {
+            role_id: professionalRole.id,
+            permission_id: permissionId
+          }
+        });
+      }
+    }
+  }
+
+  // Check and insert accounts
+  for (const account of accounts) {
+    const existingAccount = await prisma.account.findUnique({
+      where: { name: account.name }
+    });
+    if (!existingAccount) {
+      await prisma.account.create({
+        data: account
+      });
+    }
+  }
+
+  // Check and insert subAccounts
+  for (const subAccount of subAccounts) {
+    const existingSubAccount = await prisma.subAccount.findUnique({
+      where: { name: subAccount.name }
+    });
+    if (!existingSubAccount) {
+      await prisma.subAccount.create({
+        data: subAccount
+      });
+    }
+  }
+
+  // Check and insert settings
+  const existingSetting = await prisma.appSetting.findFirst({
+    where: { company_name: settings.company_name }
   });
-  await prisma.appSetting.create({
-    data: settings,
-  });
+  if (!existingSetting) {
+    await prisma.appSetting.create({
+      data: settings
+    });
+  }
 }
 
 main()
