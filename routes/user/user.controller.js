@@ -1,6 +1,8 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const axios = require("axios");
 require("dotenv").config();
+const moment = require("moment");
 
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
@@ -19,15 +21,15 @@ const login = async (req, res) => {
     // get permission from user roles
     const permissions = await prisma.role.findUnique({
       where: {
-        name: user.role,
+        name: user.role
       },
       include: {
         rolePermission: {
           include: {
-            permission: true,
-          },
-        },
-      },
+            permission: true
+          }
+        }
+      }
     });
     // store all permissions name to an array
     const permissionNames = permissions.rolePermission.map(
@@ -39,13 +41,13 @@ const login = async (req, res) => {
         { sub: user.id, permissions: permissionNames },
         secret,
         {
-          expiresIn: "24h",
+          expiresIn: "24h"
         }
       );
       const { password, ...userWithoutPassword } = user;
       return res.json({
         ...userWithoutPassword,
-        token,
+        token
       });
     }
     return res
@@ -82,15 +84,40 @@ const register = async (req, res) => {
         status: req.body.status,
         designation: {
           connect: {
-            id: Number(req.body.designation_id),
-          },
-        },
-      },
+            id: Number(req.body.designation_id)
+          }
+        }
+      }
     });
+    // données a envoyer a l'application de laravel
+    const userDataForLaravel = {
+      name: createUser.username,
+      email: createUser.email,
+      password: req.body.password,
+      role_id: 1, // Mettez le rôle souhaité ici
+      phone: createUser.phone,
+      gender: 'Homme',
+      adress: createUser.address,
+      created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
+      updated_at: moment().format("YYYY-MM-DD HH:mm:ss")
+    };
+
     const { password, ...userWithoutPassword } = createUser;
+
+    // Envoyer les données à l'API de votre application Laravel
+    const laravelApiUrl = "http://127.0.0.1:8000/api/users/register";
+    console.log("Sending data to Laravel API:", userDataForLaravel);
+
+    const response = await axios.post(laravelApiUrl, userDataForLaravel);
+    console.log("Received response from Laravel API:", response.data);
+
     res.json(userWithoutPassword);
   } catch (error) {
-    res.status(500).json(error.message);
+    console.error(
+      "Error in register function:",
+      error.response ? error.response.data : error.message
+    );
+    res.status(500).json(error.response ? error.response.data : error.message);
   }
 };
 
@@ -99,8 +126,8 @@ const getAllUser = async (req, res) => {
     try {
       const allUser = await prisma.user.findMany({
         include: {
-          saleInvoice: true,
-        },
+          saleInvoice: true
+        }
       });
       res.json(
         allUser
@@ -117,11 +144,11 @@ const getAllUser = async (req, res) => {
     try {
       const allUser = await prisma.user.findMany({
         where: {
-          status: false,
+          status: false
         },
         include: {
-          saleInvoice: true,
-        },
+          saleInvoice: true
+        }
       });
       res.json(
         allUser
@@ -138,11 +165,11 @@ const getAllUser = async (req, res) => {
     try {
       const allUser = await prisma.user.findMany({
         where: {
-          status: true,
+          status: true
         },
         include: {
-          saleInvoice: true,
-        },
+          saleInvoice: true
+        }
       });
       res.json(
         allUser
@@ -162,11 +189,11 @@ const getAllUser = async (req, res) => {
 const getSingleUser = async (req, res) => {
   const singleUser = await prisma.user.findUnique({
     where: {
-      id: Number(req.params.id),
+      id: Number(req.params.id)
     },
     include: {
-      saleInvoice: true,
-    },
+      saleInvoice: true
+    }
   });
   const id = parseInt(req.params.id);
 
@@ -191,7 +218,7 @@ const updateSingleUser = async (req, res) => {
   // );
   if (id !== req.auth.sub && !req.auth.permissions.includes("updateUser")) {
     return res.status(401).json({
-      message: "Unauthorized. You can only edit your own record.",
+      message: "Unauthorized. You can only edit your own record."
     });
   }
   try {
@@ -206,7 +233,7 @@ const updateSingleUser = async (req, res) => {
         .split("T")[0];
       const updateUser = await prisma.user.update({
         where: {
-          id: Number(req.params.id),
+          id: Number(req.params.id)
         },
         data: {
           username: req.body.username,
@@ -225,10 +252,10 @@ const updateSingleUser = async (req, res) => {
           status: req.body.status,
           designation: {
             connect: {
-              id: Number(req.body.designation_id),
-            },
-          },
-        },
+              id: Number(req.body.designation_id)
+            }
+          }
+        }
       });
       const { password, ...userWithoutPassword } = updateUser;
       res.json(userWithoutPassword);
@@ -237,11 +264,11 @@ const updateSingleUser = async (req, res) => {
       const hash = await bcrypt.hash(req.body.password, saltRounds);
       const updateUser = await prisma.user.update({
         where: {
-          id: Number(req.params.id),
+          id: Number(req.params.id)
         },
         data: {
-          password: hash,
-        },
+          password: hash
+        }
       });
       const { password, ...userWithoutPassword } = updateUser;
       res.json(userWithoutPassword);
@@ -262,11 +289,11 @@ const deleteSingleUser = async (req, res) => {
   try {
     const deleteUser = await prisma.user.update({
       where: {
-        id: Number(req.params.id),
+        id: Number(req.params.id)
       },
       data: {
-        status: req.body.status,
-      },
+        status: req.body.status
+      }
     });
     res.json({ message: "User deleted successfully" });
   } catch (error) {
@@ -280,5 +307,5 @@ module.exports = {
   getAllUser,
   getSingleUser,
   updateSingleUser,
-  deleteSingleUser,
+  deleteSingleUser
 };
