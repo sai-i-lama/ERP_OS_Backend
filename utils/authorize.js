@@ -10,6 +10,7 @@ function authorize(permission) {
 
     // authorize based on user permission
     (req, res, next) => {
+      console.log("req.auth:", req.auth); 
       // print permission of the requesting user
       // console.log("req.auth.permissions", req.auth.permissions);
       // console.log("permission", permission);
