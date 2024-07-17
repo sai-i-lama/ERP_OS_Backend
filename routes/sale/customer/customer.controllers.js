@@ -48,13 +48,13 @@ const createSingleCustomer = async (req, res) => {
         data: {
           username: req.body.name,
           password: hash,
-          role:req.body.type_customer,
+          role: req.body.type_customer,
           email: req.body.email,
           id_no: req.body.id_no,
           phone: req.body.phone,
           address: req.body.address,
           image: req.body.image,
-          status: req.body.status,
+          status: req.body.status
         }
       });
       // Créer le client
@@ -64,7 +64,7 @@ const createSingleCustomer = async (req, res) => {
           phone: req.body.phone,
           address: req.body.address,
           type_customer: req.body.type_customer,
-          userId: createUser.id,
+          userId: createUser.id
         }
       });
       res.json(createdCustomer);
@@ -383,6 +383,22 @@ const getSingleCustomer = async (req, res) => {
 
 const updateSingleCustomer = async (req, res) => {
   try {
+    // const updateUser = await prisma.user.update({
+    //   where: {
+    //     id: Number(req.params.id)
+    //   },
+    //   data: {
+    //     username: req.body.name,
+    //     password: hash,
+    //     role: req.body.type_customer,
+    //     email: req.body.email,
+    //     id_no: req.body.id_no,
+    //     phone: req.body.phone,
+    //     address: req.body.address,
+    //     image: req.body.image,
+    //     status: req.body.status
+    //   }
+    // });
     const updatedCustomer = await prisma.customer.update({
       where: {
         id: parseInt(req.params.id)
@@ -391,7 +407,7 @@ const updateSingleCustomer = async (req, res) => {
         name: req.body.name,
         phone: req.body.phone,
         address: req.body.address,
-        type_customer: req.body.type_customer
+        type_customer: req.body.type_customer,
       }
     });
     res.json(updatedCustomer);

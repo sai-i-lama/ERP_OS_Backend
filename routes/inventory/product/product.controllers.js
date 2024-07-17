@@ -31,16 +31,17 @@ const createSingleProduct = async (req, res) => {
       // convert incoming data to specific format
       const data = req.body.map((item) => {
         return {
-          name: item.name,
-          quantity: parseInt(item.quantity),
-          purchase_price: parseFloat(item.purchase_price),
-          sale_price: parseFloat(item.sale_price),
-          product_category_id: parseInt(item.product_category_id),
-          idSupplier: parseInt(item.idSupplier),
-          sku: item.sku,
-          unit_measurement: parseFloat(item.unit_measurement),
-          unit_type: item.unit_type,
-          reorder_quantity: parseInt(item.reorder_quantity),
+          name: item.name || null,
+          quantity: parseInt(item.quantity) || null,
+          purchase_price: parseFloat(item.purchase_price) || null,
+          sale_price: parseFloat(item.sale_price) || null,
+          product_category_id: parseInt(item.product_category_id) || null,
+          idSupplier: parseInt(item.idSupplier) || null,
+          sku: item.sku || null,
+          type_product: item.type_product || null,
+          unit_measurement: parseFloat(item.unit_measurement) || null,
+          unit_type: item.unit_type || null,
+          reorder_quantity: parseInt(item.reorder_quantity) || null,
         };
       });
       // create many product from an array of object
@@ -70,10 +71,10 @@ const createSingleProduct = async (req, res) => {
 
       const createdProduct = await prisma.product.create({
         data: {
-          name: req.body.name,
-          quantity: parseInt(req.body.quantity),
-          purchase_price: parseFloat(req.body.purchase_price),
-          sale_price: parseFloat(req.body.sale_price),
+          name: req.body.name || null,
+          quantity: parseInt(req.body.quantity) || null,
+          purchase_price: parseFloat(req.body.purchase_price) || null,
+          sale_price: parseFloat(req.body.sale_price) || null,
           imageName: file.filename,
           product_category: {
             connect: {
@@ -86,9 +87,10 @@ const createSingleProduct = async (req, res) => {
             },
           },
           sku: req.body.sku,
-          unit_measurement: parseFloat(req.body.unit_measurement),
-          unit_type: req.body.unit_type,
-          reorder_quantity: parseInt(req.body.reorder_quantity),
+          unit_measurement: parseFloat(req.body.unit_measurement) || null,
+          unit_type: req.body.unit_type || null,
+          type_product: req.body.type_product || null,
+          reorder_quantity: parseInt(req.body.reorder_quantity) || null,
         },
       });
       createdProduct.imageUrl = `${HOST}:${PORT}/v1/product-image/${file.filename}`;
