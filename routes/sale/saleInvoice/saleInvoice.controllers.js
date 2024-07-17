@@ -724,8 +724,31 @@ const getSingleSaleInvoice = async (req, res) => {
   }
 };
 
+const updateSaleInvoice = async (req, res) => {
+  try {
+    const updateInvoice = await prisma.saleInvoice.update({
+      where: {
+        id: Number(req.params.id),
+      },
+      data: {
+        delivred: req.body.delivred,
+      },
+    });
+    console.log(updateInvoice);
+    return res.status(200).json({
+      message: "commande délivrée avec succès",
+      data: updateInvoice,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+    console.log(error.message);
+  }
+};
+
+
 module.exports = {
   createSingleSaleInvoice,
   getAllSaleInvoice,
   getSingleSaleInvoice,
+  updateSaleInvoice,
 };

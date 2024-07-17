@@ -62,6 +62,7 @@ const permissions = [
   "viewSaleInvoice",
   "updateSaleInvoice",
   "deleteSaleInvoice",
+  "chekSaleInvoice",
 
   "createPurchaseInvoice",
   "viewPurchaseInvoice",
@@ -156,12 +157,12 @@ const settings = {
   email: "contact@sai-i-lama.gamil",
   website: "My Website",
   footer: "©2023 sai i lama",
-  tag_line: "votre sante c'est notre interest",
+  tag_line: "votre sante est notre priorité",
 };
 
 const professionalPermissions = [
   "professionalUser", "viewSaleInvoice", "viewProduct", "viewProductCategory", 
-  "viewCustomer", "createSaleInvoice", "viewDashboard"
+  "viewCustomer", "createSaleInvoice"
 ];
 
 async function main() {

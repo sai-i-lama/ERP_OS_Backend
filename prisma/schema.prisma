@@ -43,8 +43,9 @@ model product {
   id                           Int                            @id @default(autoincrement())
   name                         String                         @unique
   quantity                     Int
-  purchase_price               Float
-  sale_price                   Float
+  purchase_price               Float?
+  type_product                 String
+  sale_price                   Float?
   imageName                    String?
   supplier                     supplier    @relation(fields: [idSupplier], references: [id])
   idSupplier                   Int
@@ -139,6 +140,7 @@ model saleInvoice {
   user               user                 @relation(fields: [user_id], references: [id])
   user_id            Int
   note               String?
+  delivred           Boolean @default(false)
   saleInvoiceProduct saleInvoiceProduct[]
   returnSaleInvoice  returnSaleInvoice[]
   created_at         DateTime             @default(now())
