@@ -1,135 +1,187 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient } = require("@prisma/client");
+const { notifyAdmin } = require("../../websocketNotification");
+// const { notifyClient } = require("../../websocketNotification");
 const prisma = new PrismaClient();
 
 const createSingleSaleInvoice = async (req, res) => {
   try {
-    // calculate total sale price
+    // Validate input data
+    const {
+      customer_id,
+      user_id,
+      saleInvoiceProduct,
+      date,
+      discount,
+      paid_amount,
+      numCommande,
+      note
+    } = req.body;
+
+    if (
+      !customer_id ||
+      !user_id ||
+      !saleInvoiceProduct ||
+      !date ||
+      !numCommande
+    ) {
+      return res.status(400).json({ error: "Données manquantes" });
+    }
+
+    // Check if customer exists
+    const customer = await prisma.customer.findUnique({
+      where: { id: Number(customer_id) }
+    });
+    if (!customer) {
+      return res.status(400).json({ error: "Client non trouvé" });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: Number(user_id) }
+    });
+    if (!user) {
+      return res.status(400).json({ error: "Utilisateur non trouvé" });
+    }
+
+    // Calculate total sale price
     let totalSalePrice = 0;
-    req.body.saleInvoiceProduct.forEach((item) => {
+    saleInvoiceProduct.forEach((item) => {
       totalSalePrice +=
         parseFloat(item.product_sale_price) * parseFloat(item.product_quantity);
     });
-    // get all product asynchronously
+
+    // Get all products asynchronously
     const allProduct = await Promise.all(
-      req.body.saleInvoiceProduct.map(async (item) => {
+      saleInvoiceProduct.map(async (item) => {
         const product = await prisma.product.findUnique({
           where: {
-            id: item.product_id,
-          },
+            id: Number(item.product_id)
+          }
         });
+        if (!product) {
+          throw new Error(`Produit avec ID ${item.product_id} non trouvé`);
+        }
         return product;
       })
     );
-    // iterate over all product and calculate total purchase price
-    totalPurchasePrice = 0;
-    req.body.saleInvoiceProduct.forEach((item, index) => {
+
+    // Calculate total purchase price
+    let totalPurchasePrice = 0;
+    saleInvoiceProduct.forEach((item, index) => {
       totalPurchasePrice +=
         allProduct[index].purchase_price * item.product_quantity;
     });
-    // convert all incoming date to a specific format.
-    const date = new Date(req.body.date).toISOString().split("T")[0];
-    // create sale invoice
+
+    // Convert date to specific format
+    const formattedDate = new Date(date).toISOString().split("T")[0];
+
+    // Create sale invoice
     const createdInvoice = await prisma.saleInvoice.create({
       data: {
-        date: new Date(date),
+        date: new Date(formattedDate),
         total_amount: totalSalePrice,
-        discount: parseFloat(req.body.discount),
-        paid_amount: parseFloat(req.body.paid_amount),
-        profit:
-          totalSalePrice - parseFloat(req.body.discount) - totalPurchasePrice,
+        discount: parseFloat(discount),
+        paid_amount: parseFloat(paid_amount),
+        numCommande: numCommande,
+        profit: totalSalePrice - parseFloat(discount) - totalPurchasePrice,
         due_amount:
-          totalSalePrice -
-          parseFloat(req.body.discount) -
-          parseFloat(req.body.paid_amount),
+          totalSalePrice - parseFloat(discount) - parseFloat(paid_amount),
         customer: {
           connect: {
-            id: Number(req.body.customer_id),
-          },
+            id: Number(customer_id)
+          }
         },
         user: {
           connect: {
-            id: Number(req.body.user_id),
+            id: Number(user_id)
+          }
         },
-         },
-        note: req.body.note,
-        // map and save all products from request body array of products
+        note: note,
         saleInvoiceProduct: {
-          create: req.body.saleInvoiceProduct.map((product) => ({
+          create: saleInvoiceProduct.map((product) => ({
             product: {
               connect: {
-                id: Number(product.product_id),
-              },
+                id: Number(product.product_id)
+              }
             },
             product_quantity: Number(product.product_quantity),
-            product_sale_price: parseFloat(product.product_sale_price),
-          })),
-        },
-      },
+            product_sale_price: parseFloat(product.product_sale_price)
+          }))
+        }
+      }
     });
-    // new transactions will be created as journal entry for paid amount
-    if (req.body.paid_amount > 0) {
+
+    // Create journal entries
+    if (parseFloat(paid_amount) > 0) {
       await prisma.transaction.create({
         data: {
-          date: new Date(date),
+          date: new Date(formattedDate),
           debit_id: 1,
           credit_id: 8,
-          amount: parseFloat(req.body.paid_amount),
+          amount: parseFloat(paid_amount),
           particulars: `Cash receive on Sale Invoice #${createdInvoice.id}`,
           type: "sale",
-          related_id: createdInvoice.id,
-        },
+          related_id: createdInvoice.id
+        }
       });
     }
-    // if sale on due another transactions will be created as journal entry
+
     const due_amount =
-      totalSalePrice -
-      parseFloat(req.body.discount) -
-      parseFloat(req.body.paid_amount);
-    // console.log(due_amount);
+      totalSalePrice - parseFloat(discount) - parseFloat(paid_amount);
     if (due_amount > 0) {
       await prisma.transaction.create({
         data: {
-          date: new Date(date),
+          date: new Date(formattedDate),
           debit_id: 4,
           credit_id: 8,
           amount: due_amount,
           particulars: `Due on Sale Invoice #${createdInvoice.id}`,
           type: "sale",
-          related_id: createdInvoice.id,
-        },
+          related_id: createdInvoice.id
+        }
       });
     }
-    // cost of sales will be created as journal entry
+
     await prisma.transaction.create({
       data: {
-        date: new Date(date),
+        date: new Date(formattedDate),
         debit_id: 9,
         credit_id: 3,
         amount: totalPurchasePrice,
         particulars: `Cost of sales on Sale Invoice #${createdInvoice.id}`,
         type: "sale",
-        related_id: createdInvoice.id,
-      },
+        related_id: createdInvoice.id
+      }
     });
-    // iterate through all products of this sale invoice and decrease product quantity
-    req.body.saleInvoiceProduct.forEach(async (item) => {
-      await prisma.product.update({
-        where: {
-          id: Number(item.product_id),
-        },
-        data: {
-          quantity: {
-            decrement: Number(item.product_quantity),
+
+    // Update product quantities
+    await Promise.all(
+      saleInvoiceProduct.map((item) =>
+        prisma.product.update({
+          where: {
+            id: Number(item.product_id)
           },
-        },
-      });
-    }),
-      res.json({
-        createdInvoice,
-      });
+          data: {
+            quantity: {
+              decrement: Number(item.product_quantity)
+            }
+          }
+        })
+      )
+    );
+
+    notifyAdmin({
+      type: "new_order",
+      message: `Nouvelle commande créée avec ID : ${createdInvoice.numCommande}`,
+      order: createdInvoice
+    });
+
+    res.json({
+      createdInvoice
+    });
   } catch (error) {
-    res.status(400).json(error.message);
+    res.status(400).json({ error: error.message });
     console.log(error.message);
   }
 };
@@ -138,15 +190,15 @@ const getAllSaleInvoice = async (req, res) => {
   if (req.query.query === "info") {
     const aggregations = await prisma.saleInvoice.aggregate({
       _count: {
-        id: true,
+        id: true
       },
       _sum: {
         total_amount: true,
         discount: true,
         due_amount: true,
         paid_amount: true,
-        profit: true,
-      },
+        profit: true
+      }
     });
     res.json(aggregations);
   } else {
@@ -159,118 +211,118 @@ const getAllSaleInvoice = async (req, res) => {
             // get info of selected parameter data
             prisma.saleInvoice.aggregate({
               _count: {
-                id: true,
+                id: true
               },
               _sum: {
                 total_amount: true,
                 discount: true,
                 due_amount: true,
                 paid_amount: true,
-                profit: true,
+                profit: true
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
+                  lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
-              },
+                user_id: Number(req.query.user)
+              }
             }),
             // get saleInvoice paginated and by start and end date
             prisma.saleInvoice.findMany({
               orderBy: [
                 {
-                  id: "desc",
-                },
+                  id: "desc"
+                }
               ],
               skip: Number(skip),
               take: Number(limit),
               include: {
                 saleInvoiceProduct: {
                   include: {
-                    product: true,
-                  },
+                    product: true
+                  }
                 },
                 customer: {
                   select: {
                     id: true,
                     name: true,
-                    type_customer: true,
-                  },
+                    type_customer: true
+                  }
                 },
                 user: {
                   select: {
                     id: true,
-                    username: true,
-                  },
-                },
+                    username: true
+                  }
+                }
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
+                  lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
-              },
-            }),
+                user_id: Number(req.query.user)
+              }
+            })
           ]);
         } else {
           [aggregations, saleInvoices] = await prisma.$transaction([
             // get info of selected parameter data
             prisma.saleInvoice.aggregate({
               _count: {
-                id: true,
+                id: true
               },
               _sum: {
                 total_amount: true,
                 discount: true,
                 due_amount: true,
                 paid_amount: true,
-                profit: true,
+                profit: true
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
+                  lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
-              },
+                user_id: Number(req.query.user)
+              }
             }),
             // get saleInvoice paginated and by start and end date
             prisma.saleInvoice.findMany({
               orderBy: [
                 {
-                  id: "desc",
-                },
+                  id: "desc"
+                }
               ],
               include: {
                 saleInvoiceProduct: {
                   include: {
-                    product: true,
-                  },
+                    product: true
+                  }
                 },
                 customer: {
                   select: {
                     id: true,
                     name: true,
-                    type_customer: true,
-                  },
+                    type_customer: true
+                  }
                 },
                 user: {
                   select: {
                     id: true,
-                    username: true,
-                  },
-                },
+                    username: true
+                  }
+                }
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
+                  lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
-              },
-            }),
+                user_id: Number(req.query.user)
+              }
+            })
           ]);
         }
       } else {
@@ -279,114 +331,114 @@ const getAllSaleInvoice = async (req, res) => {
             // get info of selected parameter data
             prisma.saleInvoice.aggregate({
               _count: {
-                id: true,
+                id: true
               },
               _sum: {
                 total_amount: true,
                 discount: true,
                 due_amount: true,
                 paid_amount: true,
-                profit: true,
+                profit: true
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
-                },
-              },
+                  lte: new Date(req.query.enddate)
+                }
+              }
             }),
             // get saleInvoice paginated and by start and end date
             prisma.saleInvoice.findMany({
               orderBy: [
                 {
-                  id: "desc",
-                },
+                  id: "desc"
+                }
               ],
               skip: Number(skip),
               take: Number(limit),
               include: {
                 saleInvoiceProduct: {
                   include: {
-                    product: true,
-                  },
+                    product: true
+                  }
                 },
                 customer: {
                   select: {
                     id: true,
                     name: true,
-                    type_customer: true,
-                  },
+                    type_customer: true
+                  }
                 },
                 user: {
                   select: {
                     id: true,
-                    username: true,
-                  },
-                },
+                    username: true
+                  }
+                }
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
-                },
-              },
-            }),
+                  lte: new Date(req.query.enddate)
+                }
+              }
+            })
           ]);
         } else {
           [aggregations, saleInvoices] = await prisma.$transaction([
             // get info of selected parameter data
             prisma.saleInvoice.aggregate({
               _count: {
-                id: true,
+                id: true
               },
               _sum: {
                 total_amount: true,
                 discount: true,
                 due_amount: true,
                 paid_amount: true,
-                profit: true,
+                profit: true
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
-                },
-              },
+                  lte: new Date(req.query.enddate)
+                }
+              }
             }),
             // get saleInvoice paginated and by start and end date
             prisma.saleInvoice.findMany({
               orderBy: [
                 {
-                  id: "desc",
-                },
+                  id: "desc"
+                }
               ],
               include: {
                 saleInvoiceProduct: {
                   include: {
-                    product: true,
-                  },
+                    product: true
+                  }
                 },
                 customer: {
                   select: {
                     id: true,
                     name: true,
-                    type_customer: true,
-                  },
+                    type_customer: true
+                  }
                 },
                 user: {
                   select: {
                     id: true,
-                    username: true,
-                  },
-                },
+                    username: true
+                  }
+                }
               },
               where: {
                 date: {
                   gte: new Date(req.query.startdate),
-                  lte: new Date(req.query.enddate),
-                },
-              },
-            }),
+                  lte: new Date(req.query.enddate)
+                }
+              }
+            })
           ]);
         }
       }
@@ -395,63 +447,63 @@ const getAllSaleInvoice = async (req, res) => {
         where: {
           type: "sale",
           related_id: {
-            in: saleInvoices.map((item) => item.id),
+            in: saleInvoices.map((item) => item.id)
           },
           OR: [
             {
-              debit_id: 1,
+              debit_id: 1
             },
             {
-              debit_id: 2,
-            },
-          ],
-        },
+              debit_id: 2
+            }
+          ]
+        }
       });
       // the return that paid back to customer on return invoice
       const transactions2 = await prisma.transaction.findMany({
         where: {
           type: "sale_return",
           related_id: {
-            in: saleInvoices.map((item) => item.id),
+            in: saleInvoices.map((item) => item.id)
           },
           OR: [
             {
-              credit_id: 1,
+              credit_id: 1
             },
             {
-              credit_id: 2,
-            },
-          ],
-        },
+              credit_id: 2
+            }
+          ]
+        }
       });
       // calculate the discount given amount at the time of make the payment
       const transactions3 = await prisma.transaction.findMany({
         where: {
           type: "sale",
           related_id: {
-            in: saleInvoices.map((item) => item.id),
+            in: saleInvoices.map((item) => item.id)
           },
-          debit_id: 14,
+          debit_id: 14
         },
         include: {
           debit: {
             select: {
-              name: true,
-            },
+              name: true
+            }
           },
           credit: {
             select: {
-              name: true,
-            },
-          },
-        },
+              name: true
+            }
+          }
+        }
       });
       const returnSaleInvoice = await prisma.returnSaleInvoice.findMany({
         where: {
           saleInvoice_id: {
-            in: saleInvoices.map((item) => item.id),
-          },
-        },
+            in: saleInvoices.map((item) => item.id)
+          }
+        }
       });
       // calculate paid amount and due amount of individual sale invoice from transactions and returnSaleInvoice and attach it to saleInvoices
       const allSaleInvoice = saleInvoices.map((item) => {
@@ -487,7 +539,7 @@ const getAllSaleInvoice = async (req, res) => {
             returnAmount +
             paidAmountReturn -
             discountGiven,
-          total_unit_measurement: totalUnitMeasurement,
+          total_unit_measurement: totalUnitMeasurement
         };
       });
       // calculate total paid_amount and due_amount from allSaleInvoice and attach it to aggregations
@@ -521,7 +573,7 @@ const getAllSaleInvoice = async (req, res) => {
       aggregations._sum.total_unit_quantity = totalUnitQuantity;
       res.json({
         aggregations,
-        allSaleInvoice,
+        allSaleInvoice
       });
     } catch (error) {
       res.status(400).json(error.message);
@@ -534,22 +586,22 @@ const getSingleSaleInvoice = async (req, res) => {
   try {
     const singleSaleInvoice = await prisma.saleInvoice.findUnique({
       where: {
-        id: Number(req.params.id),
+        id: Number(req.params.id)
       },
       include: {
         saleInvoiceProduct: {
           include: {
-            product: true,
-          },
+            product: true
+          }
         },
         customer: true,
         user: {
           select: {
             id: true,
-            username: true,
-          },
-        },
-      },
+            username: true
+          }
+        }
+      }
     });
     // view the transactions of the sale invoice
     const transactions = await prisma.transaction.findMany({
@@ -557,25 +609,25 @@ const getSingleSaleInvoice = async (req, res) => {
         related_id: Number(req.params.id),
         OR: [
           {
-            type: "sale",
+            type: "sale"
           },
           {
-            type: "sale_return",
-          },
-        ],
+            type: "sale_return"
+          }
+        ]
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     // transactions of the paid amount
     const transactions2 = await prisma.transaction.findMany({
@@ -584,58 +636,58 @@ const getSingleSaleInvoice = async (req, res) => {
         related_id: Number(req.params.id),
         OR: [
           {
-            debit_id: 1,
+            debit_id: 1
           },
           {
-            debit_id: 2,
-          },
-        ],
+            debit_id: 2
+          }
+        ]
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     // for total return amount
     const returnSaleInvoice = await prisma.returnSaleInvoice.findMany({
       where: {
-        saleInvoice_id: Number(req.params.id),
+        saleInvoice_id: Number(req.params.id)
       },
       include: {
         returnSaleInvoiceProduct: {
           include: {
-            product: true,
-          },
-        },
-      },
+            product: true
+          }
+        }
+      }
     });
     // calculate the discount given amount at the time of make the payment
     const transactions3 = await prisma.transaction.findMany({
       where: {
         type: "sale",
         related_id: Number(req.params.id),
-        debit_id: 14,
+        debit_id: 14
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     // calculate the total amount return back to customer for return sale invoice from transactions
     // transactions of the paid amount
@@ -645,25 +697,25 @@ const getSingleSaleInvoice = async (req, res) => {
         related_id: Number(req.params.id),
         OR: [
           {
-            credit_id: 1,
+            credit_id: 1
           },
           {
-            credit_id: 2,
-          },
-        ],
+            credit_id: 2
+          }
+        ]
       },
       include: {
         debit: {
           select: {
-            name: true,
-          },
+            name: true
+          }
         },
         credit: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
     const paidAmountReturn = transactions4.reduce(
       (acc, curr) => acc + curr.amount,
@@ -716,7 +768,7 @@ const getSingleSaleInvoice = async (req, res) => {
       totalUnitMeasurement,
       singleSaleInvoice,
       returnSaleInvoice,
-      transactions,
+      transactions
     });
   } catch (error) {
     res.status(400).json(error.message);
@@ -725,30 +777,45 @@ const getSingleSaleInvoice = async (req, res) => {
 };
 
 const updateSaleInvoice = async (req, res) => {
+  const { id } = req.params;
+  const { delivred, ready, consuter } = req.body;
+
   try {
-    const updateInvoice = await prisma.saleInvoice.update({
-      where: {
-        id: Number(req.params.id),
-      },
+    const updatedInvoice = await prisma.saleInvoice.update({
+      where: { id: Number(id) },
       data: {
-        delivred: req.body.delivred,
-      },
+        ...(delivred !== undefined && { delivred }),
+        ...(ready !== undefined && { ready }),
+        ...(consuter !== undefined && { consuter })
+      }
     });
-    console.log(updateInvoice);
+
+    // Envoyez une notification au client si la commande est prête
+      // const clientId = updatedInvoice.customer_id; // Assurez-vous que `clientId` est correct
+      notifyAdmin ({
+        type: "update_order",
+        message: `Votre commande ${updatedInvoice.numCommande} est prête!`,
+        order: updatedInvoice
+      });
+
+    console.log(updatedInvoice);
+
     return res.status(200).json({
-      message: "commande délivrée avec succès",
-      data: updateInvoice,
+      message: "Facture mise à jour avec succès",
+      data: updatedInvoice
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
-    console.log(error.message);
+    console.error(
+      "Erreur lors de la mise à jour de la facture :",
+      error.message
+    );
+    return res.status(500).json({ error: error.message });
   }
 };
-
 
 module.exports = {
   createSingleSaleInvoice,
   getAllSaleInvoice,
   getSingleSaleInvoice,
-  updateSaleInvoice,
+  updateSaleInvoice
 };

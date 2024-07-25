@@ -141,6 +141,9 @@ model saleInvoice {
   user_id            Int
   note               String?
   delivred           Boolean @default(false)
+  consuter            Boolean@default(false)
+  ready               Boolean@default(false)
+  numCommande         String?                        @unique
   saleInvoiceProduct saleInvoiceProduct[]
   returnSaleInvoice  returnSaleInvoice[]
   created_at         DateTime             @default(now())
