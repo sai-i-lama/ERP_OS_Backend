@@ -1,6 +1,8 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient, typCat } = require("@prisma/client");
 const prisma = new PrismaClient();
+const axios = require("axios");
+require("dotenv").config();
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
@@ -26,10 +28,13 @@ const createSingleCustomer = async (req, res) => {
       const createdCustomer = await prisma.customer.createMany({
         data: req.body.map((customer) => {
           return {
-            name: customer.name,
+            username: customer.username,
             phone: customer.phone,
             address: customer.address,
-            type_customer: customer.type_customer
+            role: customer.role,
+            password: customer.password,   
+            email: customer.email,
+            status: customer.status,       
           };
         }),
         skipDuplicates: true
@@ -42,29 +47,17 @@ const createSingleCustomer = async (req, res) => {
   } else {
     try {
       // Créer l'utilisateur associé au client avec les mêmes informations
-      const hash = await bcrypt.hash("professionnel", saltRounds);
-
-      const createUser = await prisma.user.create({
-        data: {
-          username: req.body.name,
-          password: hash,
-          role: req.body.type_customer,
-          email: req.body.email,
-          id_no: req.body.id_no,
-          phone: req.body.phone,
-          address: req.body.address,
-          image: req.body.image,
-          status: req.body.status
-        }
-      });
+      const hash = await bcrypt.hash(req.body.password, saltRounds);
       // Créer le client
       const createdCustomer = await prisma.customer.create({
         data: {
-          name: req.body.name,
+          username: req.body.username,
           phone: req.body.phone,
           address: req.body.address,
-          type_customer: req.body.type_customer,
-          userId: createUser.id
+          password: hash,
+          role: req.body.role,
+          email: req.body.email,
+          status: req.body.status,
         }
       });
       res.json(createdCustomer);
@@ -383,6 +376,8 @@ const getSingleCustomer = async (req, res) => {
 
 const updateSingleCustomer = async (req, res) => {
   try {
+    // Créer l'utilisateur associé au client avec les mêmes informations
+    const hash = await bcrypt.hash(req.body.password, saltRounds);
     // const updateUser = await prisma.user.update({
     //   where: {
     //     id: Number(req.params.id)
@@ -404,10 +399,13 @@ const updateSingleCustomer = async (req, res) => {
         id: parseInt(req.params.id)
       },
       data: {
-        name: req.body.name,
+        username: req.body.username,
         phone: req.body.phone,
         address: req.body.address,
-        type_customer: req.body.type_customer,
+        password: hash,
+        role: req.body.type_customer,
+        email: req.body.email,
+        status: req.body.status,
       }
     });
     res.json(updatedCustomer);
@@ -439,5 +437,6 @@ module.exports = {
   getAllCustomer,
   getSingleCustomer,
   updateSingleCustomer,
-  deleteSingleCustomer
+  deleteSingleCustomer,
+  // loginCustomer
 };

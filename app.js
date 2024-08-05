@@ -4,7 +4,7 @@ const express = require("express");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cors = require("cors");
-const mime = require('mime');
+const mime = require("mime");
 
 const paymentPurchaseInvoiceRoutes = require("./routes/purchase/paymentPurchaseInvoice/paymentPurchaseInvoice.routes");
 const paymentSaleInvoiceRoutes = require("./routes/sale/paymentSaleInvoice/paymentSaleInvoice.routes");
@@ -20,7 +20,7 @@ const customerRoutes = require("./routes/sale/customer/customer.routes");
 const supplierRoutes = require("./routes/purchase/supplier/supplier.routes");
 const {
   productRoutes,
-  productImageRoutes,
+  productImageRoutes
 } = require("./routes/inventory/product/product.routes");
 const userRoutes = require("./routes/user/user.routes");
 const roleRoutes = require("./routes/hr/role/role.routes");
@@ -35,15 +35,17 @@ const app = express();
 
 // holds all the allowed origins for cors access
 let allowedOrigins = [
-  // "http://localhost:3001",
+  "http://localhost:3001",
   "http://127.0.0.1:3001",
   "http://localhost:5001",
   "http://localhost:5000",
   "http://localhost:8000",
   "http://127.0.0.1:8000",
+  "http://127.0.0.1:8080",
+  "http://localhost:8080",
   "https://erp-os-frontend.vercel.app",
   "http://192.168.1.176:3000",
-  "http://192.168.1.176:5000",
+  "http://192.168.1.176:5000"
 ];
 
 // limit the number of requests from a single IP address
@@ -51,7 +53,7 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20, // Limit each IP to 20 requests per `window` (here, per 15 minutes)
   standardHeaders: false, // Disable rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  legacyHeaders: false // Disable the `X-RateLimit-*` headers
 });
 
 /* Middleware */
@@ -74,18 +76,17 @@ app.use(
         return callback(new Error(msg), false);
       }
       return callback(null, true);
-    },
+    }
   })
 );
 
 // Serve JavaScript files with the correct MIME type
 app.use((req, res, next) => {
-  if (req.url.endsWith('.js')) {
-    res.setHeader('Content-Type', 'application/javascript');
+  if (req.url.endsWith(".js")) {
+    res.setHeader("Content-Type", "application/javascript");
   }
   next();
 });
-
 
 // parse requests of content-type - application/json
 app.use(express.json({ extended: true }));
@@ -112,6 +113,5 @@ app.use("/v1/product-category", productCategoryRoutes);
 app.use("/v1/account", accountRoutes);
 app.use("/v1/setting", settingRoutes);
 app.use("/v1/sms", smsRouter);
-
 
 module.exports = app;

@@ -10,7 +10,7 @@ const authorize = require("../../../utils/authorize"); // authentication middlew
 
 const customerRoutes = express.Router();
 
-customerRoutes.post("/", authorize("createCustomer"), createSingleCustomer);
+customerRoutes.post("/", createSingleCustomer);
 customerRoutes.get("/", authorize("viewCustomer"), getAllCustomer);
 customerRoutes.get("/:id", authorize("viewCustomer"), getSingleCustomer);
 customerRoutes.put("/:id", authorize("updateCustomer"), updateSingleCustomer);

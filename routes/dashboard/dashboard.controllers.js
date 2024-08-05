@@ -64,8 +64,13 @@ const getDashboardData = async (req, res) => {
       },
       where: {
         customer: {
-          type_customer: "spa"
-        }
+          role: "Centre Thérapeutique"
+        },
+        date: {
+          gte: new Date(req.query.startdate),
+          lte: new Date(req.query.enddate)
+        },
+        type_saleInvoice: "produit_fini"
       }
     });
     const salesInfoBtq = await prisma.saleInvoice.aggregate({
@@ -77,20 +82,29 @@ const getDashboardData = async (req, res) => {
       },
       where: {
         customer: {
-          type_customer: {
-            in: ["particulier", "professionnel"]
+          role: {
+            in: ["Particulier", "Professionnel"]
           }
-        }
+        },
+        date: {
+          gte: new Date(req.query.startdate),
+          lte: new Date(req.query.enddate)
+        },
+       type_saleInvoice: "produit_fini"
       }
     });
     // format response data for data visualization chart in antd
     const formattedData4 = [
-      { type: "ventes Spa", value: Number(salesInfoSpa._sum.total_amount) }
+      {
+        type: "ventes Centre Thérapeutique",
+        value: Number(salesInfoSpa._sum.total_amount)
+      }
     ];
     const formattedData5 = [
       { type: "ventes Boutique", value: Number(salesInfoBtq._sum.total_amount) }
     ];
     const SupplierVSCustomer = formattedData4.concat(formattedData5);
+
     //==================================customerSaleProfit===============================================
     // get all sale invoice by group
     const allSaleInvoiceByGroup = await prisma.saleInvoice.groupBy({
@@ -104,14 +118,15 @@ const getDashboardData = async (req, res) => {
       },
       orderBy: {
         _sum: {
-          total_amount: 'desc' // Tri décroissant par total_amount
+          total_amount: "desc" // Tri décroissant par total_amount
         }
       },
       where: {
         date: {
           gte: new Date(req.query.startdate),
           lte: new Date(req.query.enddate)
-        }
+        },
+        type_saleInvoice: "produit_fini"
       }
     });
     // format response data for data visualization chart in antdantd
@@ -121,7 +136,7 @@ const getDashboardData = async (req, res) => {
           where: { id: item.customer_id }
         });
         const formattedData = {
-          label: customer.name,
+          label: customer.username,
           type: "ventes",
           value: item._sum.total_amount
         };
@@ -134,7 +149,7 @@ const getDashboardData = async (req, res) => {
           where: { id: item.customer_id }
         });
         return {
-          label: customer.name,
+          label: customer.username,
           type: "Profits",
           value: item._sum.profit
         };
@@ -146,6 +161,76 @@ const getDashboardData = async (req, res) => {
         a.value - b.value;
       }
     );
+    //==========================================================================================================
+    //========================================Produits les Plus vendus==========================================
+    // Étape 1 : Obtenir les quantités totales vendues pour tous les produits
+    const totalQuantity = await prisma.saleInvoiceProduct.aggregate({
+      _sum: {
+        product_quantity: true
+      },
+      where: {
+        invoice: {
+          date: {
+            gte: new Date(req.query.startdate),
+            lte: new Date(req.query.enddate)
+          }
+        },
+        product: { type_product: "Produit fini" }
+      }
+    });
+
+    const totalQuantitySold = totalQuantity._sum.product_quantity;
+
+    // Étape 2 : Obtenir les produits les plus vendus
+    const topSellingProducts = await prisma.saleInvoiceProduct.groupBy({
+      by: ["product_id"],
+      where: {
+        invoice: {
+          date: {
+            gte: new Date(req.query.startdate),
+            lte: new Date(req.query.enddate)
+          }
+        },
+        product: { type_product: "Produit fini" }
+      },
+      _sum: { product_quantity: true },
+      orderBy: { _sum: { product_quantity: "desc" } },
+      take: 5
+    });
+
+    const productDetails = await prisma.product.findMany({
+      where: { id: { in: topSellingProducts.map((p) => p.product_id) } }
+    });
+
+    const productsWithQuantities = productDetails.map((product) => {
+      const productData = topSellingProducts.find(
+        (p) => p.product_id === product.id
+      );
+      return {
+        ...product,
+        quantitySold: productData._sum.product_quantity
+      };
+    });
+
+    // Étape 3 : Calculer les pourcentages
+    const productsWithPercentages = productsWithQuantities.map((product) => {
+      const percentage = (
+        (product.quantitySold / totalQuantitySold) *
+        100
+      ).toFixed(2);
+      return {
+        ...product,
+        percentageSold: parseFloat(percentage)
+      };
+    });
+
+    // Étape 4 : Sélectionner les 4 produits avec les pourcentages les plus élevés
+    const top4Products = productsWithPercentages
+      .sort((a, b) => b.percentageSold - a.percentageSold)
+      .slice(0, 4);
+
+    
+    //=========================================================================================
     //==================================cardInfo===============================================
     const purchaseInfo = await prisma.purchaseInvoice.aggregate({
       _count: {
@@ -177,7 +262,8 @@ const getDashboardData = async (req, res) => {
         date: {
           gte: new Date(req.query.startdate),
           lte: new Date(req.query.enddate)
-        }
+        },
+        type_saleInvoice: "produit_fini"
       }
     });
     //===================================cardInfoCustomer==============================================
@@ -187,13 +273,14 @@ const getDashboardData = async (req, res) => {
       purchase_total: Number(purchaseInfo._sum.total_amount),
       sale_count: saleInfo._count.id,
       sale_total: Number(saleInfo._sum.total_amount),
-      sale_profit: Number(saleInfo._sum.profit),
+      sale_profit: Number(saleInfo._sum.profit)
     };
     res.json({
       saleProfitCount,
       SupplierVSCustomer,
       customerSaleProfit,
       cardInfo,
+      top4Products
     });
   } catch (error) {
     res.status(400).json(error.message);

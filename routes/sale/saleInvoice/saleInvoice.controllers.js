@@ -1,7 +1,6 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient } = require("@prisma/client");
-const { notifyAdmin } = require("../../websocketNotification");
-// const { notifyClient } = require("../../websocketNotification");
+const { notifyUser, notifyAllUsers } = require("../../websocketNotification");
 const prisma = new PrismaClient();
 
 const createSingleSaleInvoice = async (req, res) => {
@@ -15,7 +14,8 @@ const createSingleSaleInvoice = async (req, res) => {
       discount,
       paid_amount,
       numCommande,
-      note
+      note,
+      type_saleInvoice
     } = req.body;
 
     if (
@@ -23,7 +23,8 @@ const createSingleSaleInvoice = async (req, res) => {
       !user_id ||
       !saleInvoiceProduct ||
       !date ||
-      !numCommande
+      !numCommande ||
+      !type_saleInvoice
     ) {
       return res.status(400).json({ error: "Données manquantes" });
     }
@@ -76,17 +77,34 @@ const createSingleSaleInvoice = async (req, res) => {
     // Convert date to specific format
     const formattedDate = new Date(date).toISOString().split("T")[0];
 
+    // Initialize variables
+    let total_amount, due_amount, profit;
+
+    // Determine calculations based on invoice type
+    if (type_saleInvoice === "matière_première") {
+      total_amount = totalPurchasePrice;
+      due_amount = total_amount - parseFloat(discount) - total_amount; // Will be zero or negative
+      profit = 0;
+    } else if (type_saleInvoice === "produit_fini") {
+      total_amount = totalSalePrice;
+      profit = totalSalePrice - parseFloat(discount) - totalPurchasePrice;
+      due_amount =
+        totalSalePrice - parseFloat(discount) - parseFloat(paid_amount);
+    } else {
+      return res.status(400).json({ error: "Type de facture non valide" });
+    }
+
     // Create sale invoice
     const createdInvoice = await prisma.saleInvoice.create({
       data: {
         date: new Date(formattedDate),
-        total_amount: totalSalePrice,
+        total_amount: total_amount,
+        type_saleInvoice: type_saleInvoice,
         discount: parseFloat(discount),
         paid_amount: parseFloat(paid_amount),
         numCommande: numCommande,
-        profit: totalSalePrice - parseFloat(discount) - totalPurchasePrice,
-        due_amount:
-          totalSalePrice - parseFloat(discount) - parseFloat(paid_amount),
+        profit: profit,
+        due_amount: due_amount,
         customer: {
           connect: {
             id: Number(customer_id)
@@ -106,7 +124,9 @@ const createSingleSaleInvoice = async (req, res) => {
               }
             },
             product_quantity: Number(product.product_quantity),
-            product_sale_price: parseFloat(product.product_sale_price)
+            product_sale_price: parseFloat(product.product_sale_price) || null,
+            product_purchase_price:
+              parseFloat(product.product_purchase_price) || null
           }))
         }
       }
@@ -127,15 +147,15 @@ const createSingleSaleInvoice = async (req, res) => {
       });
     }
 
-    const due_amount =
+    const due_amount_journal =
       totalSalePrice - parseFloat(discount) - parseFloat(paid_amount);
-    if (due_amount > 0) {
+    if (due_amount_journal > 0) {
       await prisma.transaction.create({
         data: {
           date: new Date(formattedDate),
           debit_id: 4,
           credit_id: 8,
-          amount: due_amount,
+          amount: due_amount_journal,
           particulars: `Due on Sale Invoice #${createdInvoice.id}`,
           type: "sale",
           related_id: createdInvoice.id
@@ -171,12 +191,15 @@ const createSingleSaleInvoice = async (req, res) => {
       )
     );
 
-    notifyAdmin({
-      type: "new_order",
-      message: `Nouvelle commande créée avec ID : ${createdInvoice.numCommande}`,
-      order: createdInvoice
-    });
+    if (type_saleInvoice === "produit_fini") {
+      notifyAllUsers({
+        type: "new_order",
+        message: `Nouvelle commande créée avec ID : ${createdInvoice.numCommande}`,
+        order: createdInvoice
+      });
+    }
 
+    console.log(createdInvoice);
     res.json({
       createdInvoice
     });
@@ -205,7 +228,7 @@ const getAllSaleInvoice = async (req, res) => {
     const { skip, limit } = getPagination(req.query);
     try {
       let aggregations, saleInvoices;
-      if (req.query.user) {
+      if (req.query.user || req.query.customer) {
         if (req.query.count) {
           [aggregations, saleInvoices] = await prisma.$transaction([
             // get info of selected parameter data
@@ -225,7 +248,8 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user)
+                user_id: Number(req.query.user),
+                customer_id: Number(req.query.customer)
               }
             }),
             // get saleInvoice paginated and by start and end date
@@ -246,8 +270,8 @@ const getAllSaleInvoice = async (req, res) => {
                 customer: {
                   select: {
                     id: true,
-                    name: true,
-                    type_customer: true
+                    username: true,
+                    role: true
                   }
                 },
                 user: {
@@ -262,7 +286,8 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user)
+                user_id: Number(req.query.user),
+                customer_id: Number(req.query.customer)
               }
             })
           ]);
@@ -304,8 +329,8 @@ const getAllSaleInvoice = async (req, res) => {
                 customer: {
                   select: {
                     id: true,
-                    name: true,
-                    type_customer: true
+                    username: true,
+                    role: true
                   }
                 },
                 user: {
@@ -320,7 +345,8 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user)
+                user_id: Number(req.query.user),
+                customer_id: Number(req.query.customer)
               }
             })
           ]);
@@ -365,8 +391,8 @@ const getAllSaleInvoice = async (req, res) => {
                 customer: {
                   select: {
                     id: true,
-                    name: true,
-                    type_customer: true
+                    username: true,
+                    role: true
                   }
                 },
                 user: {
@@ -421,8 +447,8 @@ const getAllSaleInvoice = async (req, res) => {
                 customer: {
                   select: {
                     id: true,
-                    name: true,
-                    type_customer: true
+                    username: true,
+                    role: true
                   }
                 },
                 user: {
@@ -778,7 +804,7 @@ const getSingleSaleInvoice = async (req, res) => {
 
 const updateSaleInvoice = async (req, res) => {
   const { id } = req.params;
-  const { delivred, ready, consuter } = req.body;
+  const { delivred, ready, consumed } = req.body;
 
   try {
     const updatedInvoice = await prisma.saleInvoice.update({
@@ -786,18 +812,33 @@ const updateSaleInvoice = async (req, res) => {
       data: {
         ...(delivred !== undefined && { delivred }),
         ...(ready !== undefined && { ready }),
-        ...(consuter !== undefined && { consuter })
+        ...(consumed !== undefined && { consumed })
+      },
+      include: {
+        customer: true // Inclure les informations du client
       }
     });
 
-    // Envoyez une notification au client si la commande est prête
-      // const clientId = updatedInvoice.customer_id; // Assurez-vous que `clientId` est correct
-      notifyAdmin ({
-        type: "update_order",
-        message: `Votre commande ${updatedInvoice.numCommande} est prête!`,
-        order: updatedInvoice
+    // Envoyer une notification au client associé à la commande si elle est prête
+    if (ready === true) {
+      const clientId = updatedInvoice.customer.id; // Utilisation de l'id du client associé à la commande
+
+      // Envoi de la notification au client
+      const client = await prisma.customer.findUnique({
+        where: { id: clientId }
       });
 
+      if (client) {
+        // Assurez-vous que notifyUser accepte l'identifiant du client
+        notifyUser(clientId, {
+          type: "update_order",
+          message: `Votre commande ${updatedInvoice.numCommande} est prête!`,
+          order: updatedInvoice
+        });
+      }
+    }
+
+    // Notifier aussi les utilisateurs/admins
     console.log(updatedInvoice);
 
     return res.status(200).json({

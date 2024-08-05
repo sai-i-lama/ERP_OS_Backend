@@ -9,7 +9,7 @@ datasource db {
 
 model user {
   id             Int           @id @default(autoincrement())
-  username       String        @unique
+  username       String        
   password       String
   role           String
   email          String?       @unique
@@ -25,10 +25,23 @@ model user {
   blood_group    String?
   image          String?
   saleInvoice    saleInvoice[]
-  customer customer?
   status         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+model customer {
+  id          Int           @id @default(autoincrement())
+  username    String        
+  phone       String        @unique
+  address     String
+  password    String
+  email       String?       @unique
+  status      Boolean       @default(true)
+  role        String
+  saleInvoice saleInvoice[]
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
 }
 
 model designation {
@@ -47,7 +60,7 @@ model product {
   type_product                 String
   sale_price                   Float?
   imageName                    String?
-  supplier                     supplier    @relation(fields: [idSupplier], references: [id])
+  supplier                     supplier                       @relation(fields: [idSupplier], references: [id])
   idSupplier                   Int
   product_category_id          Int?
   unit_measurement             Float?
@@ -113,20 +126,6 @@ model purchaseInvoiceProduct {
   updated_at             DateTime        @updatedAt
 }
 
-model customer {
-  id          Int           @id @default(autoincrement())
-  name        String
-  phone       String        @unique
-  address     String
-  status      Boolean       @default(true)
-  type_customer typCat
-  saleInvoice saleInvoice[]
-  user         user @relation(fields: [userId], references: [id])
-  userId       Int @unique
-  created_at  DateTime      @default(now())
-  updated_at  DateTime      @updatedAt
-}
-
 model saleInvoice {
   id                 Int                  @id @default(autoincrement())
   date               DateTime
@@ -140,10 +139,11 @@ model saleInvoice {
   user               user                 @relation(fields: [user_id], references: [id])
   user_id            Int
   note               String?
-  delivred           Boolean @default(false)
-  consuter            Boolean@default(false)
-  ready               Boolean@default(false)
-  numCommande         String?                        @unique
+  delivred           Boolean              @default(false)
+  consuter           Boolean              @default(false)
+  ready              Boolean              @default(false)
+  numCommande        String?              @unique
+  type_saleInvoice String
   saleInvoiceProduct saleInvoiceProduct[]
   returnSaleInvoice  returnSaleInvoice[]
   created_at         DateTime             @default(now())
@@ -157,7 +157,8 @@ model saleInvoiceProduct {
   invoice            saleInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   invoice_id         Int
   product_quantity   Int
-  product_sale_price Float
+  product_sale_price Float ?
+  product_purchase_price Float ?
   created_at         DateTime    @default(now())
   updated_at         DateTime    @updatedAt
 }
@@ -287,8 +288,3 @@ model appSetting {
   footer       String
 }
 
-enum typCat{
-professionnel
-particulier
-spa
-}

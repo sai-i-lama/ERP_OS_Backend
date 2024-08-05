@@ -1,48 +1,77 @@
-const WebSocket = require("ws");
-const wss = new WebSocket.Server({ port: 8080 });
+const http = require("http");
+const socketIo = require("socket.io");
+const express = require("express");
+const cors = require("cors");
 
-const clients = new Map();
+const app = express();
+const server = http.createServer(app);
 
-wss.on("connection", (ws, req) => {
-  console.log("Nouveau client connecté");
+const allowedOrigins = [
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://localhost:5001",
+  "http://localhost:5000",
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
+  "http://127.0.0.1:8080",
+  "http://localhost:8080",
+  "https://erp-os-frontend.vercel.app",
+  "http://192.168.1.176:3000",
+  "http://192.168.1.176:5000"
+];
 
-  // Parse URL query parameters to get user ID
-  const urlParams = new URLSearchParams(req.url.split("?")[1]);
-  const userId = urlParams.get("userId");
-
-  if (userId) {
-    clients.set(userId, ws);
-    console.log(`Client connecté avec l'ID utilisateur: ${userId}`);
-  }
-
-  ws.on("close", (code, reason) => {
-    console.log(`Client déconnecté: ${code} - ${reason}`);
-    clients.forEach((clientWs, clientId) => {
-      if (clientWs === ws) {
-        clients.delete(clientId);
+const io = socketIo(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        return callback(
+          new Error("CORS policy does not allow access from this origin."),
+          false
+        );
       }
-    });
+      return callback(null, true);
+    },
+    methods: ["GET", "POST"]
+  }
+});
+
+// Objet pour garder une trace des sockets des utilisateurs
+const userSockets = {};
+
+io.on("connection", (socket) => {
+  console.log("New client connecté");
+
+  // Écoute de l'identification de l'utilisateur
+  socket.on("identify", (userId) => {
+    userSockets[userId] = socket.id;
   });
 
-  ws.on("error", (error) => {
-    console.error("Erreur WebSocket:", error);
+  socket.on("disconnect", () => {
+    console.log("Client déconnecté");
+    // Suppression de l'utilisateur de l'objet userSockets
+    for (const [userId, socketId] of Object.entries(userSockets)) {
+      if (socketId === socket.id) {
+        delete userSockets[userId];
+        break;
+      }
+    }
   });
 });
 
-const notifyAdmin = (message) => {
-  console.log("Envoi de la notification aux clients connectés:", message);
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(message));
-    }
-  });
+// Fonction pour notifier un utilisateur spécifique
+const notifyUser = (userId, message) => {
+  const socketId = userSockets[userId];
+  if (socketId) {
+    io.to(socketId).emit("user-notification", message);
+  } else {
+    console.log(`User with ID ${userId} is not connected.`);
+  }
 };
 
-// const notifyClient = (userId, message) => {
-//   const clientWs = clients.get(userId);
-//   if (clientWs && clientWs.readyState === WebSocket.OPEN) {
-//     clientWs.send(JSON.stringify(message));
-//   }
-// };
+// Fonction pour notifier tous les utilisateurs
+const notifyAllUsers = (message) => {
+  io.emit("staff-notification", message);
+};
 
-module.exports = { notifyAdmin };
+module.exports = { io, notifyUser, notifyAllUsers };
