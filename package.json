@@ -29,6 +29,7 @@
     "crypto": "^1.0.1",
     "debug": "^4.3.4",
     "dotenv": "^14.3.2",
+    "erpos": "file:",
     "express": "^4.17.2",
     "express-jwt": "^7.7.5",
     "express-rate-limit": "^6.6.0",
@@ -43,7 +44,7 @@
     "pg": "^8.11.3",
     "pretty-quick": "^3.1.3",
     "sharp": "^0.31.0",
-    "ws": "^8.18.0"
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "nodemon": "^2.0.15",

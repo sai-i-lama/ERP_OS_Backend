@@ -43,7 +43,7 @@ const permissions = [
   "updateProduct",
   "deleteProduct",
 
-  "createCustomer",
+  // "createCustomer",
   "viewCustomer",
   "updateCustomer",
   "deleteCustomer",
@@ -122,7 +122,7 @@ const permissions = [
   "viewSetting",
 ];
 
-const roles = ["admin", "staff", "professionnel"];
+const roles = ["admin", "staff", "Professionnel","Particulier"];
 
 const accounts = [
   { name: "Asset", type: "Asset" },
@@ -164,6 +164,10 @@ const professionalPermissions = [
   "professionalUser", "viewSaleInvoice", "viewProduct", "viewProductCategory", 
   "viewCustomer", "createSaleInvoice"
 ];
+const particularPermissions = [
+  "professionalUser", "viewSaleInvoice", "viewProduct", "viewProductCategory", 
+  "viewCustomer", "createSaleInvoice"
+];
 
 async function main() {
   const adminHash = await bcrypt.hash("admin", saltRounds);
@@ -171,13 +175,14 @@ async function main() {
 
   // Check if admin user exists
   const adminUser = await prisma.user.findUnique({
-    where: { username: "admin" }
+    where: { email: "admin@gmail.com" }
   });
 
   if (!adminUser) {
     await prisma.user.create({
       data: {
         username: "admin",
+        email: "admin@gmail.com",
         password: adminHash,
         role: "admin",
       },
@@ -186,13 +191,14 @@ async function main() {
 
   // Check if staff user exists
   const staffUser = await prisma.user.findUnique({
-    where: { username: "staff" }
+    where: { email: "staff@gmail.com" }
   });
 
   if (!staffUser) {
     await prisma.user.create({
       data: {
         username: "staff",
+        email: "staff@gmail.com",
         password: staffHash,
         role: "staff",
       },
@@ -247,7 +253,7 @@ async function main() {
   }
 
   // Assign specific permissions to the professional role
-  const professionalRole = await prisma.role.findUnique({ where: { name: "professionnel" } });
+  const professionalRole = await prisma.role.findUnique({ where: { name: "Professionnel" } });
   if (professionalRole) {
     for (const permission of professionalPermissions) {
       const permissionId = (await prisma.permission.findUnique({ where: { name: permission } })).id;
@@ -269,6 +275,31 @@ async function main() {
       }
     }
   }
+
+
+   // Assign specific permissions to the professional role
+   const particularRole = await prisma.role.findUnique({ where: { name: "Particulier" } });
+   if (particularRole) {
+     for (const permission of particularPermissions) {
+       const permissionId = (await prisma.permission.findUnique({ where: { name: permission } })).id;
+       const existingRolePermission = await prisma.rolePermission.findUnique({
+         where: {
+           role_id_permission_id: {
+             role_id: particularRole.id,
+             permission_id: permissionId
+           }
+         }
+       });
+       if (!existingRolePermission) {
+         await prisma.rolePermission.create({
+           data: {
+             role_id: particularRole.id,
+             permission_id: permissionId
+           }
+         });
+       }
+     }
+   }
 
   // Check and insert accounts
   for (const account of accounts) {

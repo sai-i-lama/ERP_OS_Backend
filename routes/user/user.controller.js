@@ -12,49 +12,66 @@ const secret = process.env.JWT_SECRET;
 
 const login = async (req, res) => {
   try {
-    const allUser = await prisma.user.findMany();
-    const user = allUser.find(
-      (u) =>
-        u.username === req.body.username &&
-        bcrypt.compareSync(req.body.password, u.password)
-    );
-    // get permission from user roles
-    const permissions = await prisma.role.findUnique({
+    const { email, password } = req.body;
+
+    // Cherche d'abord comme utilisateur
+    let user = await prisma.user.findUnique({
       where: {
-        name: user.role
-      },
-      include: {
-        rolePermission: {
-          include: {
-            permission: true
-          }
-        }
+        email: email
       }
     });
-    // store all permissions name to an array
-    const permissionNames = permissions.rolePermission.map(
-      (rp) => rp.permission.name
-    );
-    // console.log("permissionNames", permissionNames);
-    if (user) {
-      const token = jwt.sign(
-        { sub: user.id, permissions: permissionNames },
-        secret,
-        {
-          expiresIn: "24h"
+
+    // Si ce n'est pas un utilisateur, cherchez comme client
+    if (!user) {
+      user = await prisma.customer.findUnique({
+        where: {
+          email: email // Utilisez `username` pour la recherche de client
         }
+      });
+    }
+
+    // Vérifiez le mot de passe pour l'utilisateur trouvé
+    if (user && bcrypt.compareSync(password, user.password)) {
+      // Obtenez les permissions basées sur le rôle de l'utilisateur (si applicable)
+      let permissions = [];
+      if (user.role) {
+        const role = await prisma.role.findUnique({
+          where: {
+            name: user.role
+          },
+          include: {
+            rolePermission: {
+              include: {
+                permission: true
+              }
+            }
+          }
+        });
+        permissions = role.rolePermission.map((rp) => rp.permission.name);
+      }
+
+      // Créez un token JWT
+      const token = jwt.sign(
+        { sub: user.id, permissions, role: user.role },
+        secret,
+        { expiresIn: "24h" }
       );
+
+      // Supprimez le mot de passe avant de renvoyer les informations de l'utilisateur
       const { password, ...userWithoutPassword } = user;
+
       return res.json({
         ...userWithoutPassword,
         token
       });
+    } else {
+      return res
+        .status(400)
+        .json({ message: "Username or password is incorrect" });
     }
-    return res
-      .status(400)
-      .json({ message: "Username or password is incorrect" });
   } catch (error) {
-    res.status(500).json(error.message);
+    console.error("Backend error:", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
