@@ -9,7 +9,7 @@ datasource db {
 
 model user {
   id             Int           @id @default(autoincrement())
-  username       String        
+  username       String
   password       String
   role           String
   email          String?       @unique
@@ -28,20 +28,46 @@ model user {
   status         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  AuditLog       auditLog[]
+}
+
+model auditLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  tableName String
+  oldValues Json?
+  newValues Json?
+  timestamp DateTime @default(now())
+  IdUser    Int?
+  user      user?    @relation(fields: [IdUser], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model customer {
-  id          Int           @id @default(autoincrement())
-  username    String        
-  phone       String        @unique
-  address     String
-  password    String
-  email       String?       @unique
-  status      Boolean       @default(true)
-  role        String
-  saleInvoice saleInvoice[]
-  created_at  DateTime      @default(now())
-  updated_at  DateTime      @updatedAt
+  id           Int            @id @default(autoincrement())
+  username     String
+  phone        String         @unique
+  address      String
+  password     String
+  email        String?        @unique
+  status       Boolean        @default(true)
+  role         String
+  saleInvoice  saleInvoice[]
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+  notification notification[]
+}
+
+model notification {
+  id        Int      @id @default(autoincrement())
+  cusId     Int
+  customer  customer @relation(fields: [cusId], references: [id])
+  message   String
+  type      String
+  createdAt DateTime @default(now())
+  updateAt  DateTime @updatedAt
+  isRead    Boolean  @default(false)
 }
 
 model designation {
@@ -143,7 +169,7 @@ model saleInvoice {
   consuter           Boolean              @default(false)
   ready              Boolean              @default(false)
   numCommande        String?              @unique
-  type_saleInvoice String
+  type_saleInvoice   String
   saleInvoiceProduct saleInvoiceProduct[]
   returnSaleInvoice  returnSaleInvoice[]
   created_at         DateTime             @default(now())
@@ -151,16 +177,16 @@ model saleInvoice {
 }
 
 model saleInvoiceProduct {
-  id                 Int         @id @default(autoincrement())
-  product            product     @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  product_id         Int
-  invoice            saleInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  invoice_id         Int
-  product_quantity   Int
-  product_sale_price Float ?
-  product_purchase_price Float ?
-  created_at         DateTime    @default(now())
-  updated_at         DateTime    @updatedAt
+  id                     Int         @id @default(autoincrement())
+  product                product     @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product_id             Int
+  invoice                saleInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  invoice_id             Int
+  product_quantity       Int
+  product_sale_price     Float?
+  product_purchase_price Float?
+  created_at             DateTime    @default(now())
+  updated_at             DateTime    @updatedAt
 }
 
 model transaction {
@@ -287,4 +313,3 @@ model appSetting {
   website      String
   footer       String
 }
-

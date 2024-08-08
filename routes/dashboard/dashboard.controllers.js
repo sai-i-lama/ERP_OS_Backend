@@ -90,7 +90,7 @@ const getDashboardData = async (req, res) => {
           gte: new Date(req.query.startdate),
           lte: new Date(req.query.enddate)
         },
-       type_saleInvoice: "produit_fini"
+        type_saleInvoice: "produit_fini"
       }
     });
     // format response data for data visualization chart in antd
@@ -163,10 +163,10 @@ const getDashboardData = async (req, res) => {
     );
     //==========================================================================================================
     //========================================Produits les Plus vendus==========================================
-    // Étape 1 : Obtenir les quantités totales vendues pour tous les produits
+    // Étape 1 : Obtenir les prix totaux vendus pour tous les produits
     const totalQuantity = await prisma.saleInvoiceProduct.aggregate({
       _sum: {
-        product_quantity: true
+        product_sale_price: true
       },
       where: {
         invoice: {
@@ -179,7 +179,7 @@ const getDashboardData = async (req, res) => {
       }
     });
 
-    const totalQuantitySold = totalQuantity._sum.product_quantity;
+    const totalQuantitySold = totalQuantity._sum.product_sale_price;
 
     // Étape 2 : Obtenir les produits les plus vendus
     const topSellingProducts = await prisma.saleInvoiceProduct.groupBy({
@@ -193,8 +193,8 @@ const getDashboardData = async (req, res) => {
         },
         product: { type_product: "Produit fini" }
       },
-      _sum: { product_quantity: true },
-      orderBy: { _sum: { product_quantity: "desc" } },
+      _sum: { product_sale_price: true },
+      orderBy: { _sum: { product_sale_price: "desc" } },
       take: 5
     });
 
@@ -208,7 +208,7 @@ const getDashboardData = async (req, res) => {
       );
       return {
         ...product,
-        quantitySold: productData._sum.product_quantity
+        quantitySold: productData._sum.product_sale_price
       };
     });
 
@@ -230,6 +230,7 @@ const getDashboardData = async (req, res) => {
       .slice(0, 4);
 
     
+
     //=========================================================================================
     //==================================cardInfo===============================================
     const purchaseInfo = await prisma.purchaseInvoice.aggregate({
@@ -266,7 +267,6 @@ const getDashboardData = async (req, res) => {
         type_saleInvoice: "produit_fini"
       }
     });
-    //===================================cardInfoCustomer==============================================
     // concat 2 object
     const cardInfo = {
       purchase_count: purchaseInfo._count.id,
@@ -275,6 +275,7 @@ const getDashboardData = async (req, res) => {
       sale_total: Number(saleInfo._sum.total_amount),
       sale_profit: Number(saleInfo._sum.profit)
     };
+
     res.json({
       saleProfitCount,
       SupplierVSCustomer,
