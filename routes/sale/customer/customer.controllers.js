@@ -7,9 +7,10 @@ const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
 const createSingleCustomer = async (req, res) => {
+  const userId = req.user?.id; // Assurez-vous que l'ID utilisateur est récupéré correctement ici
+
   if (req.query.query === "deletemany") {
     try {
-      // delete many customer at once
       const deletedAccount = await prisma.customer.deleteMany({
         where: {
           id: {
@@ -17,38 +18,55 @@ const createSingleCustomer = async (req, res) => {
           }
         }
       });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "DELETE_MANY",
+          model: "Customer",
+          oldValue: deletedAccount, // Les anciennes valeurs supprimées
+          newValue: null,
+          userId: userId
+        }
+      });
+
       res.json(deletedAccount);
     } catch (error) {
-      res.status(400).json(error.message);
+      res.status(400).json({ message: error.message });
       console.log(error.message);
     }
   } else if (req.query.query === "createmany") {
     try {
-      // create many customer from an array of objects
-      const createdCustomer = await prisma.customer.createMany({
-        data: req.body.map((customer) => {
-          return {
-            username: customer.username,
-            phone: customer.phone,
-            address: customer.address,
-            role: customer.role,
-            password: customer.password,   
-            email: customer.email,
-            status: customer.status,       
-          };
-        }),
+      const createdCustomers = await prisma.customer.createMany({
+        data: req.body.map((customer) => ({
+          username: customer.username,
+          phone: customer.phone,
+          address: customer.address,
+          role: customer.role,
+          password: customer.password,
+          email: customer.email,
+          status: customer.status
+        })),
         skipDuplicates: true
       });
-      res.json(createdCustomer);
+
+      await prisma.auditLog.create({
+        data: {
+          action: "CREATE_MANY",
+          model: "Customer",
+          oldValue: null,
+          newValue: createdCustomers, // Les nouvelles valeurs créées
+          userId: userId
+        }
+      });
+
+      res.json(createdCustomers);
     } catch (error) {
-      res.status(400).json(error.message);
+      res.status(400).json({ message: error.message });
       console.log(error.message);
     }
   } else {
     try {
-      // Créer l'utilisateur associé au client avec les mêmes informations
       const hash = await bcrypt.hash(req.body.password, saltRounds);
-      // Créer le client
       const createdCustomer = await prisma.customer.create({
         data: {
           username: req.body.username,
@@ -57,12 +75,25 @@ const createSingleCustomer = async (req, res) => {
           password: hash,
           role: req.body.role,
           email: req.body.email,
-          status: req.body.status,
+          status: req.body.status
         }
       });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "CREATE",
+          model: "Customer",
+          oldValue: null,
+          newValue: createdCustomer, // Les nouvelles valeurs créées
+          userId: userId
+        }
+      });
+      console.log("Created Customer:", createdCustomer);
+      console.log("User ID:", userId);
+
       res.json(createdCustomer);
     } catch (error) {
-      res.status(400).json(error.message);
+      res.status(400).json({ message: error.message });
       console.log(error.message);
     }
   }
@@ -145,26 +176,29 @@ const getAllCustomer = async (req, res) => {
 
 const getSingleCustomer = async (req, res) => {
   try {
+    const { startdate, enddate } = req.query;
+
+    // Convertir les dates en objets Date si elles sont fournies
+    const startDate = startdate ? new Date(startdate) : null;
+    const endDate = enddate ? new Date(enddate) : null;
+
+    // Trouver le client avec les factures de vente filtrées par date
     const singleCustomer = await prisma.customer.findUnique({
       where: {
         id: parseInt(req.params.id)
       },
       include: {
-        saleInvoice: true
+        saleInvoice: {
+          where: {
+            date: {
+              ...(startDate && { gte: startDate }),
+              ...(endDate && { lte: endDate })
+            }
+          }
+        }
       }
     });
-
-    // get individual customer's due amount by calculating: sale invoice's total_amount - return sale invoices - transactions
-    const allSaleInvoiceTotalAmount = await prisma.saleInvoice.aggregate({
-      _sum: {
-        total_amount: true,
-        discount: true
-      },
-      where: {
-        customer_id: parseInt(req.params.id)
-      }
-    });
-    // all invoice of a customer with return sale invoice nested
+    // Récupérer toutes les factures de retour pour le client
     const customersAllInvoice = await prisma.customer.findUnique({
       where: {
         id: parseInt(req.params.id)
@@ -181,145 +215,83 @@ const getSingleCustomer = async (req, res) => {
         }
       }
     });
-    // get all return sale invoice of a customer
-    const allReturnSaleInvoice = customersAllInvoice.saleInvoice.map(
-      (invoice) => {
-        return invoice.returnSaleInvoice;
-      }
-    );
-    // calculate total return sale invoice amount
-    const TotalReturnSaleInvoice = allReturnSaleInvoice.reduce(
-      (acc, invoice) => {
-        const returnSaleInvoiceTotalAmount = invoice.reduce((acc, invoice) => {
-          return acc + invoice.total_amount;
-        }, 0);
-        return acc + returnSaleInvoiceTotalAmount;
+    const allSaleInvoiceTotalAmount = await prisma.saleInvoice.aggregate({
+      _sum: {
+        total_amount: true,
+        discount: true
       },
+      where: {
+        customer_id: parseInt(req.params.id)
+      }
+    });
+    // Calculer le montant total des factures de retour
+    const allReturnSaleInvoice = customersAllInvoice.saleInvoice.flatMap(
+      (invoice) => invoice.returnSaleInvoice
+    );
+    const TotalReturnSaleInvoice = allReturnSaleInvoice.reduce(
+      (acc, invoice) => acc + invoice.total_amount,
       0
     );
-    console.log(allReturnSaleInvoice);
-    console.log(TotalReturnSaleInvoice);
-    // get all saleInvoice id
+
+    // Récupérer tous les IDs des factures de vente
     const allSaleInvoiceId = customersAllInvoice.saleInvoice.map(
-      (saleInvoice) => {
-        return saleInvoice.id;
-      }
+      (saleInvoice) => saleInvoice.id
     );
-    // get all transactions related to saleInvoice
+
+    // Récupérer toutes les transactions liées aux factures de vente
     const allSaleTransaction = await prisma.transaction.findMany({
       where: {
         type: "sale",
-        related_id: {
-          in: allSaleInvoiceId
-        },
-        OR: [
-          {
-            debit_id: 1
-          },
-          {
-            debit_id: 2
-          }
-        ]
+        related_id: { in: allSaleInvoiceId },
+        OR: [{ debit_id: 1 }, { debit_id: 2 }]
       },
       include: {
-        debit: {
-          select: {
-            name: true
-          }
-        },
-        credit: {
-          select: {
-            name: true
-          }
-        }
+        debit: { select: { name: true } },
+        credit: { select: { name: true } }
       }
     });
-    // get all transactions related to return saleInvoice
+
+    // Récupérer toutes les transactions liées aux factures de retour
     const allReturnSaleTransaction = await prisma.transaction.findMany({
       where: {
         type: "sale_return",
-        related_id: {
-          in: allSaleInvoiceId
-        },
-        OR: [
-          {
-            credit_id: 1
-          },
-          {
-            credit_id: 2
-          }
-        ]
+        related_id: { in: allSaleInvoiceId },
+        OR: [{ credit_id: 1 }, { credit_id: 2 }]
       },
       include: {
-        debit: {
-          select: {
-            name: true
-          }
-        },
-        credit: {
-          select: {
-            name: true
-          }
-        }
+        debit: { select: { name: true } },
+        credit: { select: { name: true } }
       }
     });
-    // calculate the discount given amount at the time of make the payment
+
+    // Calculer le montant total des paiements
+    const totalPaidAmount = allSaleTransaction.reduce(
+      (acc, cur) => acc + cur.amount,
+      0
+    );
+    const paidAmountReturn = allReturnSaleTransaction.reduce(
+      (acc, cur) => acc + cur.amount,
+      0
+    );
+
+    // Calculer le montant total des remises données
     const discountGiven = await prisma.transaction.findMany({
       where: {
         type: "sale",
-        related_id: {
-          in: allSaleInvoiceId
-        },
+        related_id: { in: allSaleInvoiceId },
         debit_id: 14
       },
       include: {
-        debit: {
-          select: {
-            name: true
-          }
-        },
-        credit: {
-          select: {
-            name: true
-          }
-        }
+        debit: { select: { name: true } },
+        credit: { select: { name: true } }
       }
     });
-    const totalPaidAmount = allSaleTransaction.reduce((acc, cur) => {
-      return acc + cur.amount;
-    }, 0);
-    const paidAmountReturn = allReturnSaleTransaction.reduce((acc, cur) => {
-      return acc + cur.amount;
-    }, 0);
-    const totalDiscountGiven = discountGiven.reduce((acc, cur) => {
-      return acc + cur.amount;
-    }, 0);
-    //get all transactions related to saleInvoiceId
-    const allTransaction = await prisma.transaction.findMany({
-      where: {
-        related_id: {
-          in: allSaleInvoiceId
-        }
-      },
-      include: {
-        debit: {
-          select: {
-            name: true
-          }
-        },
-        credit: {
-          select: {
-            name: true
-          }
-        }
-      }
-    });
-    console.log("total_amount", allSaleInvoiceTotalAmount._sum.total_amount);
-    console.log("discount", allSaleInvoiceTotalAmount._sum.discount);
-    console.log("totalPaidAmount", totalPaidAmount);
-    console.log("totalDiscountGiven", totalDiscountGiven);
-    console.log("TotalReturnSaleInvoice", TotalReturnSaleInvoice);
-    console.log("paidAmountReturn", paidAmountReturn);
+    const totalDiscountGiven = discountGiven.reduce(
+      (acc, cur) => acc + cur.amount,
+      0
+    );
+
+    // Calculer le montant dû
     const due_amount =
       parseFloat(allSaleInvoiceTotalAmount._sum.total_amount) -
       parseFloat(allSaleInvoiceTotalAmount._sum.discount) -
@@ -327,45 +299,54 @@ const getSingleCustomer = async (req, res) => {
       parseFloat(totalDiscountGiven) -
       parseFloat(TotalReturnSaleInvoice) +
       parseFloat(paidAmountReturn);
-    console.log("due_amount", due_amount);
 
-    // include due_amount in singleCustomer
-    singleCustomer.due_amount = due_amount ? due_amount : 0;
-    singleCustomer.allReturnSaleInvoice = allReturnSaleInvoice.flat();
-    singleCustomer.allTransaction = allTransaction;
-    //==================== UPDATE customer's purchase invoice information START====================
-    // async is used for not blocking the main thread
-    const updatedInvoices = singleCustomer.saleInvoice.map(async (item) => {
-      const paidAmount = allSaleTransaction
-        .filter((transaction) => transaction.related_id === item.id)
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const paidAmountReturn = allReturnSaleTransaction
-        .filter((transaction) => transaction.related_id === item.id)
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const singleDiscountGiven = discountGiven
-        .filter((transaction) => transaction.related_id === item.id)
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const returnAmount = allReturnSaleInvoice
-        .flat()
-        .filter(
-          (returnSaleInvoice) => returnSaleInvoice.saleInvoice_id === item.id
-        )
-        .reduce((acc, curr) => acc + curr.total_amount, 0);
-      return {
-        ...item,
-        paid_amount: paidAmount,
-        discount: item.discount + singleDiscountGiven,
-        due_amount:
-          item.total_amount -
-          item.discount -
-          paidAmount -
-          returnAmount +
-          paidAmountReturn -
-          singleDiscountGiven
-      };
-    });
-    singleCustomer.saleInvoice = await Promise.all(updatedInvoices);
-    //==================== UPDATE customer's sale invoice information END====================
+    singleCustomer.due_amount = due_amount || 0;
+    singleCustomer.allReturnSaleInvoice = allReturnSaleInvoice;
+    singleCustomer.allTransaction = allSaleTransaction;
+
+    // Mettre à jour les informations des factures de vente du client
+    const updatedInvoices = await Promise.all(
+      singleCustomer.saleInvoice.map(async (item) => {
+        const paidAmount = allSaleTransaction
+          .filter((transaction) => transaction.related_id === item.id)
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        const paidAmountReturn = allReturnSaleTransaction
+          .filter((transaction) => transaction.related_id === item.id)
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        const singleDiscountGiven = discountGiven
+          .filter((transaction) => transaction.related_id === item.id)
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        const returnAmount = allReturnSaleInvoice
+          .filter(
+            (returnSaleInvoice) => returnSaleInvoice.saleInvoice_id === item.id
+          )
+          .reduce((acc, curr) => acc + curr.total_amount, 0);
+
+        return {
+          ...item,
+          paid_amount: paidAmount,
+          discount: item.discount + singleDiscountGiven,
+          due_amount:
+            item.total_amount -
+            item.discount -
+            paidAmount -
+            returnAmount +
+            paidAmountReturn -
+            singleDiscountGiven
+        };
+      })
+    );
+
+    // Inclure les valeurs agrégées dans la réponse
+    singleCustomer.saleCus_count = singleCustomer.saleInvoice.length;
+    singleCustomer.saleCus_total_amount = singleCustomer.saleInvoice.reduce(
+      (acc, curr) => acc + curr.total_amount,
+      0
+    );
+    singleCustomer.saleCus_due_amount = due_amount || 0;
+    singleCustomer.saleCus_paid_amount = totalPaidAmount;
+
+    singleCustomer.saleInvoice = updatedInvoices;
 
     res.json(singleCustomer);
   } catch (error) {
@@ -405,7 +386,7 @@ const updateSingleCustomer = async (req, res) => {
         password: hash,
         role: req.body.type_customer,
         email: req.body.email,
-        status: req.body.status,
+        status: req.body.status
       }
     });
     res.json(updatedCustomer);
@@ -437,6 +418,6 @@ module.exports = {
   getAllCustomer,
   getSingleCustomer,
   updateSingleCustomer,
-  deleteSingleCustomer,
+  deleteSingleCustomer
   // loginCustomer
 };

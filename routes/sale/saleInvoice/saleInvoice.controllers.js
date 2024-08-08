@@ -145,6 +145,18 @@ const createSingleSaleInvoice = async (req, res) => {
           related_id: createdInvoice.id
         }
       });
+      const clientId = createdInvoice.customer_id;
+      const client = await prisma.customer.findUnique({
+        where: { id: clientId }
+      });
+
+      if (client) {
+        notifyUser(clientId, {
+          type: "by_commande",
+          message: `Votre commande ${createdInvoice.numCommande} a été payée d'un montant de ${createdInvoice.paid_amount} !`,
+          order: createdInvoice
+        });
+      }
     }
 
     const due_amount_journal =
@@ -221,6 +233,9 @@ const getAllSaleInvoice = async (req, res) => {
         due_amount: true,
         paid_amount: true,
         profit: true
+      },
+      where: {
+        type_saleInvoice: "produit_fini"
       }
     });
     res.json(aggregations);
@@ -249,7 +264,8 @@ const getAllSaleInvoice = async (req, res) => {
                   lte: new Date(req.query.enddate)
                 },
                 user_id: Number(req.query.user),
-                customer_id: Number(req.query.customer)
+                customer_id: Number(req.query.customer),
+                type_saleInvoice: "produit_fini"
               }
             }),
             // get saleInvoice paginated and by start and end date
@@ -287,7 +303,8 @@ const getAllSaleInvoice = async (req, res) => {
                   lte: new Date(req.query.enddate)
                 },
                 user_id: Number(req.query.user),
-                customer_id: Number(req.query.customer)
+                customer_id: Number(req.query.customer),
+                type_saleInvoice: "produit_fini"
               }
             })
           ]);
@@ -310,7 +327,8 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user)
+                user_id: Number(req.query.user),
+                type_saleInvoice: "produit_fini"
               }
             }),
             // get saleInvoice paginated and by start and end date
@@ -346,7 +364,8 @@ const getAllSaleInvoice = async (req, res) => {
                   lte: new Date(req.query.enddate)
                 },
                 user_id: Number(req.query.user),
-                customer_id: Number(req.query.customer)
+                customer_id: Number(req.query.customer),
+                type_saleInvoice: "produit_fini"
               }
             })
           ]);
@@ -370,7 +389,8 @@ const getAllSaleInvoice = async (req, res) => {
                 date: {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
-                }
+                },
+                type_saleInvoice: "produit_fini"
               }
             }),
             // get saleInvoice paginated and by start and end date
@@ -406,7 +426,8 @@ const getAllSaleInvoice = async (req, res) => {
                 date: {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
-                }
+                },
+                type_saleInvoice: "produit_fini"
               }
             })
           ]);
@@ -428,7 +449,8 @@ const getAllSaleInvoice = async (req, res) => {
                 date: {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
-                }
+                },
+                type_saleInvoice: "produit_fini"
               }
             }),
             // get saleInvoice paginated and by start and end date
@@ -462,7 +484,8 @@ const getAllSaleInvoice = async (req, res) => {
                 date: {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
-                }
+                },
+                type_saleInvoice: "produit_fini",
               }
             })
           ]);

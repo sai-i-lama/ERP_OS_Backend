@@ -1,26 +1,50 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient } = require("@prisma/client");
+const { notifyUser } = require("../../websocketNotification");
 const prisma = new PrismaClient();
 
 const createSinglePaymentSaleInvoice = async (req, res) => {
   try {
-    // convert all incoming data to a specific format.
     const date = new Date(req.body.date).toISOString().split("T")[0];
-    // received paid amount against sale invoice using a transaction
-    const transaction1 = await prisma.transaction.create({
-      data: {
-        date: new Date(date),
-        debit_id: 1,
-        credit_id: 4,
-        amount: parseFloat(req.body.amount),
-        particulars: `Received payment of Sale Invoice #${req.body.sale_invoice_no}`,
-        type: "sale",
-        related_id: parseInt(req.body.sale_invoice_no),
-      },
-    });
-    // discount given using a transaction
-    let transaction2;
-    if (req.body.discount > 0) {
+    const amount = parseFloat(req.body.amount);
+
+    let transaction1 = null;
+    let transaction2 = null;
+
+    if (amount > 0) {
+      transaction1 = await prisma.transaction.create({
+        data: {
+          date: new Date(),
+          debit_id: 1,
+          credit_id: 4,
+          amount: amount,
+          particulars: `Received payment of Sale Invoice #${req.body.sale_invoice_no}`,
+          type: "sale",
+          related_id: parseInt(req.body.sale_invoice_no)
+        }
+      });
+
+      const saleInvoice = await prisma.saleInvoice.update({
+        where: { id: parseInt(req.body.sale_invoice_no) },
+        data: { profit: { decrement: parseFloat(req.body.discount) } },
+        include: { customer: true }
+      });
+
+      const clientId = saleInvoice.customer.id;
+      const client = await prisma.customer.findUnique({
+        where: { id: clientId }
+      });
+
+      if (client) {
+        notifyUser(clientId, {
+          type: "new_by_commande",
+          message: `Votre commande ${req.body.sale_invoice_no} a été payée d'un montant de ${amount} !`,
+          order: saleInvoice
+        });
+      }
+    }
+
+    if (parseFloat(req.body.discount) > 0) {
       transaction2 = await prisma.transaction.create({
         data: {
           date: new Date(date),
@@ -29,25 +53,15 @@ const createSinglePaymentSaleInvoice = async (req, res) => {
           amount: parseFloat(req.body.discount),
           particulars: `Discount given of Sale Invoice #${req.body.sale_invoice_no}`,
           type: "sale",
-          related_id: parseInt(req.body.sale_invoice_no),
-        },
+          related_id: parseInt(req.body.sale_invoice_no)
+        }
       });
     }
-    // decrease sale invoice profit by discount value
-    const saleInvoice = await prisma.saleInvoice.update({
-      where: {
-        id: parseInt(req.body.sale_invoice_no),
-      },
-      data: {
-        profit: {
-          decrement: parseFloat(req.body.discount),
-        },
-      },
-    });
+
     res.status(200).json({ transaction1, transaction2 });
   } catch (error) {
-    res.status(400).json(error.message);
-    console.log(error.message);
+    res.status(400).json({ message: error.message });
+    console.error(error.message);
   }
 };
 
@@ -56,11 +70,11 @@ const getAllPaymentSaleInvoice = async (req, res) => {
     try {
       const allPaymentSaleInvoice = await prisma.transaction.findMany({
         where: {
-          type: "payment_sale_invoice",
+          type: "payment_sale_invoice"
         },
         orderBy: {
-          id: "desc",
-        },
+          id: "desc"
+        }
       });
       res.json(allPaymentSaleInvoice);
     } catch (error) {
@@ -70,14 +84,14 @@ const getAllPaymentSaleInvoice = async (req, res) => {
   } else if (req.query.query === "info") {
     const aggregations = await prisma.transaction.aggregate({
       where: {
-        type: "payment_sale_invoice",
+        type: "payment_sale_invoice"
       },
       _count: {
-        id: true,
+        id: true
       },
       _sum: {
-        amount: true,
-      },
+        amount: true
+      }
     });
     res.json(aggregations);
   } else {
@@ -85,13 +99,13 @@ const getAllPaymentSaleInvoice = async (req, res) => {
     try {
       const allPaymentSaleInvoice = await prisma.transaction.findMany({
         where: {
-          type: "payment_sale_invoice",
+          type: "payment_sale_invoice"
         },
         orderBy: {
-          id: "desc",
+          id: "desc"
         },
         skip: Number(skip),
-        take: Number(limit),
+        take: Number(limit)
       });
       res.json(allPaymentSaleInvoice);
     } catch (error) {
@@ -154,7 +168,7 @@ const getAllPaymentSaleInvoice = async (req, res) => {
 
 module.exports = {
   createSinglePaymentSaleInvoice,
-  getAllPaymentSaleInvoice,
+  getAllPaymentSaleInvoice
   // getSinglePaymentSupplier,
   // updateSinglePaymentSupplier,
   // deleteSinglePaymentSupplier,
