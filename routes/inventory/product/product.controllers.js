@@ -93,6 +93,17 @@ const createSingleProduct = async (req, res) => {
           reorder_quantity: parseInt(req.body.reorder_quantity) || null,
         },
       });
+      await prisma.auditLog.create({
+        data: {
+          action: "CREATE_SINGLE_PRODUCT",
+          modelId: createdProduct.id,
+          modelName: "Product",
+          oldValues: undefined, // Les anciennes valeurs supprimées
+          newValues: createdProduct,
+          IdUser: Number(req.auth.sub),
+        }
+      });
+
       createdProduct.imageUrl = `${HOST}:${PORT}/v1/product-image/${file.filename}`;
       // stock product's account transaction create
       await prisma.transaction.create({
