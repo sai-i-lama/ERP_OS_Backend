@@ -21,11 +21,12 @@ const createSingleCustomer = async (req, res) => {
 
       await prisma.auditLog.create({
         data: {
-          action: "DELETE_MANY",
-          model: "Customer",
-          oldValue: deletedAccount, // Les anciennes valeurs supprimées
-          newValue: null,
-          userId: userId
+          action: "DELETE_MANY_CUSTOMERS",
+          // modelId: Number(req.body.map((id) => id).join(', ')),
+          modelName: "Customer",
+          oldValues: deletedAccount, // Les anciennes valeurs supprimées
+          newValues: null,
+          userId: Number(req.auth.sub),
         }
       });
 
@@ -78,19 +79,6 @@ const createSingleCustomer = async (req, res) => {
           status: req.body.status
         }
       });
-
-      await prisma.auditLog.create({
-        data: {
-          action: "CREATE",
-          model: "Customer",
-          oldValue: null,
-          newValue: createdCustomer, // Les nouvelles valeurs créées
-          userId: userId
-        }
-      });
-      console.log("Created Customer:", createdCustomer);
-      console.log("User ID:", userId);
-
       res.json(createdCustomer);
     } catch (error) {
       res.status(400).json({ message: error.message });

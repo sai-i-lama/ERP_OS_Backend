@@ -34,14 +34,13 @@ model user {
 model auditLog {
   id        Int      @id @default(autoincrement())
   action    String
-  tableName String
+  modelId  Int?
+  modelName String?
   oldValues Json?
   newValues Json?
-  timestamp DateTime @default(now())
   IdUser    Int?
   user      user?    @relation(fields: [IdUser], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  timestamp DateTime @default(now())
 }
 
 model customer {
