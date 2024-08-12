@@ -32,15 +32,18 @@ model user {
 }
 
 model auditLog {
-  id        Int      @id @default(autoincrement())
-  action    String
-  modelId  Int?
-  modelName String?
-  oldValues Json?
-  newValues Json?
-  IdUser    Int?
-  user      user?    @relation(fields: [IdUser], references: [id])
-  timestamp DateTime @default(now())
+  id                  Int       @id @default(autoincrement())
+  action              String
+  auditableId         Int?
+  auditableModel      String?
+  ActorAuditableModel String?
+  IdUser              Int?
+  user                user?     @relation(fields: [IdUser], references: [id])
+  IdCustomer          Int?
+  customer            customer? @relation(fields: [IdCustomer], references: [id])
+  oldValues           Json?
+  newValues           Json?
+  timestamp           DateTime  @default(now())
 }
 
 model customer {
@@ -56,6 +59,7 @@ model customer {
   created_at   DateTime       @default(now())
   updated_at   DateTime       @updatedAt
   notification notification[]
+  auditLog     auditLog[]
 }
 
 model notification {

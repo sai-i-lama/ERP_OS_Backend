@@ -21,18 +21,21 @@ const login = async (req, res) => {
       }
     });
 
+    let userType = "user"; // Par défaut, l'utilisateur est un "user"
+
     // Si ce n'est pas un utilisateur, cherchez comme client
     if (!user) {
       user = await prisma.customer.findUnique({
         where: {
-          email: email // Utilisez `username` pour la recherche de client
+          email: email // Utilisez `email` pour la recherche de client
         }
       });
+      userType = "customer"; // Si trouvé comme client, définissez userType sur "customer"
     }
 
     // Vérifiez le mot de passe pour l'utilisateur trouvé
     if (user && bcrypt.compareSync(password, user.password)) {
-      // Obtenez les permissions basées sur le rôle de l'utilisateur (si applicable)
+      // Obtenez les permissions basées sur le rôle de l'utilisateur ou du client
       let permissions = [];
       if (user.role) {
         const role = await prisma.role.findUnique({
@@ -50,9 +53,9 @@ const login = async (req, res) => {
         permissions = role.rolePermission.map((rp) => rp.permission.name);
       }
 
-      // Créez un token JWT
+      // Création du token JWT
       const token = jwt.sign(
-        { sub: user.id, permissions, role: user.role },
+        { sub: user.id, permissions, role: user.role, userType: userType }, // Ajoutez `userType` pour indiquer le type d'entité
         secret,
         { expiresIn: "24h" }
       );
@@ -67,7 +70,7 @@ const login = async (req, res) => {
     } else {
       return res
         .status(400)
-        .json({ message: "Username or password is incorrect" });
+        .json({ message: "Email or password is incorrect" });
     }
   } catch (error) {
     console.error("Backend error:", error);
@@ -106,6 +109,7 @@ const register = async (req, res) => {
         }
       }
     });
+    
     // données a envoyer a l'application de laravel
     // const userDataForLaravel = {
     //   name: req.body.username,
