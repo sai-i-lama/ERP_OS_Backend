@@ -132,6 +132,26 @@ const createSingleSaleInvoice = async (req, res) => {
       }
     });
 
+    await prisma.auditLog.create({
+      data: {
+        action: "CREATION DE COMMANDE",
+        auditableId: createdInvoice.numCommande,
+        auditableModel: "Commande",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: createdInvoice,
+        timestamp: new Date()
+      }
+    });
+
     // Create journal entries
     if (parseFloat(paid_amount) > 0) {
       await prisma.transaction.create({
@@ -485,7 +505,7 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                type_saleInvoice: "produit_fini",
+                type_saleInvoice: "produit_fini"
               }
             })
           ]);
@@ -830,6 +850,17 @@ const updateSaleInvoice = async (req, res) => {
   const { delivred, ready, consumed } = req.body;
 
   try {
+    // Étape 1: Récupération des anciennes valeurs
+    const existingInvoice = await prisma.saleInvoice.findUnique({
+      where: { id: Number(id) },
+      include: { customer: true } // Inclure les informations du client si nécessaire
+    });
+
+    // Vérifier si la commande existe
+    if (!existingInvoice) {
+      return res.status(404).json({ message: "Commande non trouvée" });
+    }
+
     const updatedInvoice = await prisma.saleInvoice.update({
       where: { id: Number(id) },
       data: {
@@ -860,6 +891,26 @@ const updateSaleInvoice = async (req, res) => {
         });
       }
     }
+
+    await prisma.auditLog.create({
+      data: {
+        action: "MODIFICATION DE LA COMMANDE",
+        auditableId: updatedInvoice.numCommande,
+        auditableModel: "Commande",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingInvoice, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: updatedInvoice,
+        timestamp: new Date()
+      }
+    });
 
     // Notifier aussi les utilisateurs/admins
     console.log(updatedInvoice);

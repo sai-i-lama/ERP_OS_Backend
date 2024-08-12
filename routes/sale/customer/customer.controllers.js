@@ -26,7 +26,7 @@ const createSingleCustomer = async (req, res) => {
           modelName: "Customer",
           oldValues: deletedAccount, // Les anciennes valeurs supprimées
           newValues: null,
-          userId: Number(req.auth.sub),
+          userId: Number(req.auth.sub)
         }
       });
 
@@ -79,6 +79,27 @@ const createSingleCustomer = async (req, res) => {
           status: req.body.status
         }
       });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "CREATION DE CLIENT",
+          auditableId: createdCustomer.id,
+          auditableModel: "Client",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          newValues: createdCustomer,
+          timestamp: new Date()
+        }
+      });
+
       res.json(createdCustomer);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -345,42 +366,62 @@ const getSingleCustomer = async (req, res) => {
 
 const updateSingleCustomer = async (req, res) => {
   try {
-    // Créer l'utilisateur associé au client avec les mêmes informations
-    const hash = await bcrypt.hash(req.body.password, saltRounds);
-    // const updateUser = await prisma.user.update({
-    //   where: {
-    //     id: Number(req.params.id)
-    //   },
-    //   data: {
-    //     username: req.body.name,
-    //     password: hash,
-    //     role: req.body.type_customer,
-    //     email: req.body.email,
-    //     id_no: req.body.id_no,
-    //     phone: req.body.phone,
-    //     address: req.body.address,
-    //     image: req.body.image,
-    //     status: req.body.status
-    //   }
-    // });
+    const { id } = req.params; // Récupération de l'ID depuis les paramètres de la requête
+
+    // Récupérer les anciennes valeurs du client
+    const existingCustomer = await prisma.customer.findUnique({
+      where: { id: Number(id) }
+    });
+
+    // Vérifier si le client existe
+    if (!existingCustomer) {
+      return res.status(404).json({ message: "Client non trouvé" });
+    }
+
+    // Créer un hash pour le mot de passe si fourni dans la requête
+    const hash = req.body.password
+      ? await bcrypt.hash(req.body.password, saltRounds)
+      : existingCustomer.password;
+
+    // Mettre à jour les informations du client
     const updatedCustomer = await prisma.customer.update({
-      where: {
-        id: parseInt(req.params.id)
-      },
+      where: { id: Number(id) },
       data: {
-        username: req.body.username,
-        phone: req.body.phone,
-        address: req.body.address,
+        username: req.body.username || existingCustomer.username,
+        phone: req.body.phone || existingCustomer.phone,
+        address: req.body.address || existingCustomer.address,
         password: hash,
-        role: req.body.type_customer,
-        email: req.body.email,
-        status: req.body.status
+        role: req.body.type_customer || existingCustomer.role,
+        email: req.body.email || existingCustomer.email,
+        status: req.body.status || existingCustomer.status
       }
     });
+
+    // Créer une entrée dans le journal d'audit
+    await prisma.auditLog.create({
+      data: {
+        action: "MODIFICATION DU CLIENT",
+        auditableId: updatedCustomer.id,
+        auditableModel: "Client",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingCustomer,
+        newValues: updatedCustomer,
+        timestamp: new Date()
+      }
+    });
+
     res.json(updatedCustomer);
   } catch (error) {
-    res.status(400).json(error.message);
-    console.log(error.message);
+    res.status(400).json({ message: error.message }); // Assurez-vous que `error.message` est une chaîne
+    console.error(error.message); // Utilisez console.error pour les erreurs
   }
 };
 

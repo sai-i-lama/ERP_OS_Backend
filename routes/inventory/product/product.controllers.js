@@ -13,9 +13,9 @@ const createSingleProduct = async (req, res) => {
       const deletedProduct = await prisma.product.deleteMany({
         where: {
           id: {
-            in: req.body.map((id) => Number(id)),
-          },
-        },
+            in: req.body.map((id) => Number(id))
+          }
+        }
       });
       res.json(deletedProduct);
     } catch (error) {
@@ -41,13 +41,13 @@ const createSingleProduct = async (req, res) => {
           type_product: item.type_product || null,
           unit_measurement: parseFloat(item.unit_measurement) || null,
           unit_type: item.unit_type || null,
-          reorder_quantity: parseInt(item.reorder_quantity) || null,
+          reorder_quantity: parseInt(item.reorder_quantity) || null
         };
       });
       // create many product from an array of object
       const createdProduct = await prisma.product.createMany({
         data: data,
-        skipDuplicates: true,
+        skipDuplicates: true
       });
       // stock product's account transaction create
       await prisma.transaction.create({
@@ -56,8 +56,8 @@ const createSingleProduct = async (req, res) => {
           debit_id: 3,
           credit_id: 6,
           amount: totalPurchasePrice,
-          particulars: `Initial stock of ${createdProduct.count} item/s of product`,
-        },
+          particulars: `Initial stock of ${createdProduct.count} item/s of product`
+        }
       });
       res.json(createdProduct);
     } catch (error) {
@@ -66,9 +66,10 @@ const createSingleProduct = async (req, res) => {
     }
   } else {
     try {
-      // create one product from an object
       const file = req.file;
+      console.log("req.auth:", req.auth); // Debugging log
 
+      // Création du produit
       const createdProduct = await prisma.product.create({
         data: {
           name: req.body.name || null,
@@ -78,34 +79,49 @@ const createSingleProduct = async (req, res) => {
           imageName: file.filename,
           product_category: {
             connect: {
-              id: Number(req.body.product_category_id),
-            },
+              id: Number(req.body.product_category_id)
+            }
           },
           supplier: {
-            connect : {
-              id: Number(req.body.idSupplier),
-            },
+            connect: {
+              id: Number(req.body.idSupplier)
+            }
           },
           sku: req.body.sku,
           unit_measurement: parseFloat(req.body.unit_measurement) || null,
           unit_type: req.body.unit_type || null,
           type_product: req.body.type_product || null,
-          reorder_quantity: parseInt(req.body.reorder_quantity) || null,
-        },
+          reorder_quantity: parseInt(req.body.reorder_quantity) || null
+        }
       });
+
+      const actionType =
+        req.body.type_product === "Produit fini"
+          ? "CREATION DE PRODUIT"
+          : "CREATION DE MATIÈRE PREMIÈRE";
+
       await prisma.auditLog.create({
         data: {
-          action: "CREATE_SINGLE_PRODUCT",
-          modelId: createdProduct.id,
-          modelName: "Product",
-          oldValues: undefined, // Les anciennes valeurs supprimées
+          action: actionType,
+          auditableId: createdProduct.id,
+          auditableModel: "Produits",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
           newValues: createdProduct,
-          IdUser: Number(req.auth.sub),
+          timestamp: new Date()
         }
       });
 
       createdProduct.imageUrl = `${HOST}:${PORT}/v1/product-image/${file.filename}`;
-      // stock product's account transaction create
+
       await prisma.transaction.create({
         data: {
           date: new Date(),
@@ -113,9 +129,10 @@ const createSingleProduct = async (req, res) => {
           credit_id: 6,
           amount:
             parseFloat(req.body.purchase_price) * parseInt(req.body.quantity),
-          particulars: `Initial stock of product #${createdProduct.id}`,
-        },
+          particulars: `Initial stock of product #${createdProduct.id}`
+        }
       });
+
       res.json(createdProduct);
     } catch (error) {
       res.status(400).json(error.message);
@@ -129,20 +146,20 @@ const getAllProduct = async (req, res) => {
     try {
       const allProduct = await prisma.product.findMany({
         orderBy: {
-          id: "desc",
+          id: "desc"
         },
         include: {
           product_category: {
             select: {
-              name: true,
-            },
+              name: true
+            }
           },
           supplier: {
             select: {
-              name: true,
-            },
-          },
-        },
+              name: true
+            }
+          }
+        }
       });
       // attach signed url to each product
       for (let product of allProduct) {
@@ -163,32 +180,32 @@ const getAllProduct = async (req, res) => {
             {
               name: {
                 contains: req.query.prod,
-                mode: "insensitive",
-              },
+                mode: "insensitive"
+              }
             },
             {
               sku: {
                 contains: req.query.prod,
-                mode: "insensitive",
-              },
-            },
-          ],
+                mode: "insensitive"
+              }
+            }
+          ]
         },
         orderBy: {
-          id: "desc",
+          id: "desc"
         },
         include: {
           product_category: {
             select: {
-              name: true,
-            },
+              name: true
+            }
           },
           supplier: {
             select: {
-              name: true,
-            },
-          },
-        },
+              name: true
+            }
+          }
+        }
       });
       // attach signed url to each product
       for (let product of allProduct) {
@@ -204,14 +221,14 @@ const getAllProduct = async (req, res) => {
   } else if (req.query.query === "info") {
     const aggregations = await prisma.product.aggregate({
       _count: {
-        id: true,
+        id: true
       },
       _sum: {
-        quantity: true,
+        quantity: true
       },
       where: {
-        status: true,
-      },
+        status: true
+      }
     });
     // get all product and calculate all purchase price and sale price
     const allProduct = await prisma.product.findMany();
@@ -227,25 +244,25 @@ const getAllProduct = async (req, res) => {
       const { skip, limit } = getPagination(req.query);
       const allProduct = await prisma.product.findMany({
         orderBy: {
-          id: "desc",
+          id: "desc"
         },
         where: {
-          status: false,
+          status: false
         },
         include: {
           product_category: {
             select: {
-              name: true,
-            },
+              name: true
+            }
           },
           supplier: {
             select: {
-              name: true,
-            },
-          },
+              name: true
+            }
+          }
         },
         skip: Number(skip),
-        take: Number(limit),
+        take: Number(limit)
       });
       // attach signed url to each product
       for (let product of allProduct) {
@@ -263,25 +280,25 @@ const getAllProduct = async (req, res) => {
     try {
       const allProduct = await prisma.product.findMany({
         orderBy: {
-          id: "desc",
+          id: "desc"
         },
         where: {
-          status: true,
+          status: true
         },
         include: {
           product_category: {
             select: {
-              name: true,
-            },
+              name: true
+            }
           },
           supplier: {
             select: {
-              name: true,
-            },
-          },
+              name: true
+            }
+          }
         },
         skip: Number(skip),
-        take: Number(limit),
+        take: Number(limit)
       });
       // attach signed url to each product
       for (let product of allProduct) {
@@ -301,8 +318,8 @@ const getSingleProduct = async (req, res) => {
   try {
     const singleProduct = await prisma.product.findUnique({
       where: {
-        id: Number(req.params.id),
-      },
+        id: Number(req.params.id)
+      }
     });
     if (singleProduct && singleProduct.imageName) {
       singleProduct.imageUrl = `${HOST}:${PORT}/v1/product-image/${singleProduct.imageName}`;
@@ -318,14 +335,14 @@ const updateSingleProduct = async (req, res) => {
   try {
     const updatedProduct = await prisma.product.update({
       where: {
-        id: Number(req.params.id),
+        id: Number(req.params.id)
       },
       data: {
         name: req.body.name,
         quantity: parseInt(req.body.quantity),
         purchase_price: parseFloat(req.body.purchase_price),
-        sale_price: parseFloat(req.body.sale_price),
-      },
+        sale_price: parseFloat(req.body.sale_price)
+      }
     });
     res.json(updatedProduct);
   } catch (error) {
@@ -338,11 +355,11 @@ const deleteSingleProduct = async (req, res) => {
   try {
     const deletedProduct = await prisma.product.update({
       where: {
-        id: Number(req.params.id),
+        id: Number(req.params.id)
       },
       data: {
-        status: req.body.status,
-      },
+        status: req.body.status
+      }
     });
     // TODO: implement delete image from disk
     // if (deletedProduct && deletedProduct.imageName) {
@@ -360,5 +377,5 @@ module.exports = {
   getAllProduct,
   getSingleProduct,
   updateSingleProduct,
-  deleteSingleProduct,
+  deleteSingleProduct
 };
