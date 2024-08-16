@@ -26,9 +26,9 @@ const getAuditLogs = async (req, res) => {
       take,
       include: {
         user: true,
+        customer: true
       },
     });
-
     res.status(200).json(logs);
   } catch (error) {
     res.status(400).json(error.message);

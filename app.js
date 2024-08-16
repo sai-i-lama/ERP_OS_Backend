@@ -29,6 +29,7 @@ const productCategoryRoutes = require("./routes/inventory/productCategory/produc
 const accountRoutes = require("./routes/accounting/account/account.routes");
 const settingRoutes = require("./routes/setting/setting.routes");
 const smsRouter = require("./routes/sms/sms.routes");
+const getAuditLogs = require('./routes/AuditLog/auditlog.routes')
 /* variables */
 // express app instance
 const app = express();
@@ -113,5 +114,6 @@ app.use("/v1/product-category", productCategoryRoutes);
 app.use("/v1/account", accountRoutes);
 app.use("/v1/setting", settingRoutes);
 app.use("/v1/sms", smsRouter);
+app.use("/v1/audit-logs", getAuditLogs);
 
 module.exports = app;

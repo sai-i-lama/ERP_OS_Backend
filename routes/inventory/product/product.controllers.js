@@ -97,8 +97,8 @@ const createSingleProduct = async (req, res) => {
 
       const actionType =
         req.body.type_product === "Produit fini"
-          ? "CREATION DE PRODUIT"
-          : "CREATION DE MATIÈRE PREMIÈRE";
+          ? "Création d'un produit"
+          : "Création d'une matière première";
 
       await prisma.auditLog.create({
         data: {
@@ -344,6 +344,37 @@ const updateSingleProduct = async (req, res) => {
         sale_price: parseFloat(req.body.sale_price)
       }
     });
+
+    // Récupérer les anciennes valeurs du produit
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    // Vérifier si le client existe
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Produit non trouvé" });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        action: actionType,
+        auditableId: updatedProduct.id,
+        auditableModel: "Produits",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingProduct, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: updatedProduct,
+        timestamp: new Date()
+      }
+    });
+
     res.json(updatedProduct);
   } catch (error) {
     res.status(400).json(error.message);
@@ -365,6 +396,36 @@ const deleteSingleProduct = async (req, res) => {
     // if (deletedProduct && deletedProduct.imageName) {
     //   await deleteFile(deletedProduct.imageName);
     // }
+    
+     // Récupérer les anciennes valeurs du produit
+     const existingProduct = await prisma.product.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    // Vérifier si le client existe
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Produit non trouvé" });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        action: actionType,
+        auditableId: deletedProduct.id,
+        auditableModel: "Produits",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingProduct, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: deletedProduct,
+        timestamp: new Date()
+      }
+    });
     res.json(deletedProduct);
   } catch (error) {
     res.status(400).json(error.message);

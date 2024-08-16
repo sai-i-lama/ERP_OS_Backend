@@ -109,7 +109,27 @@ const register = async (req, res) => {
         }
       }
     });
-    
+
+    await prisma.auditLog.create({
+      data: {
+        action: "CREATION DU PERSONNEL",
+        auditableId: createUser.id,
+        auditableModel: "Personnel",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: createUser,
+        timestamp: new Date()
+      }
+    });
+
     // données a envoyer a l'application de laravel
     // const userDataForLaravel = {
     //   name: req.body.username,
@@ -279,6 +299,36 @@ const updateSingleUser = async (req, res) => {
         }
       });
       const { password, ...userWithoutPassword } = updateUser;
+
+      const { id } = req.params; // Récupération de l'ID depuis les paramètres de la requête
+
+      const existingUser = await prisma.user.findUnique({
+        where: { id: Number(id) }
+      });
+      // Vérifier si le user existe
+      if (!existingUser) {
+        return res.status(404).json({ message: "User non trouvé" });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          action: "MODIFICATION DU PERSONNEL",
+          auditableId: userWithoutPassword.id,
+          auditableModel: "Personnel",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: existingUser, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          newValues: userWithoutPassword,
+          timestamp: new Date()
+        }
+      });
       res.json(userWithoutPassword);
     } else {
       // owner can change only password
@@ -292,6 +342,37 @@ const updateSingleUser = async (req, res) => {
         }
       });
       const { password, ...userWithoutPassword } = updateUser;
+
+      const { id } = req.params; // Récupération de l'ID depuis les paramètres de la requête
+
+      const existingUser = await prisma.user.findUnique({
+        where: { id: Number(id) }
+      });
+      // Vérifier si le user existe
+      if (!existingUser) {
+        return res.status(404).json({ message: "User non trouvé" });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          action: "MODIFICATION DU PERSONNEL",
+          auditableId: userWithoutPassword.id,
+          auditableModel: "Personnel",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: existingUser, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          newValues: userWithoutPassword,
+          timestamp: new Date()
+        }
+      });
+
       res.json(userWithoutPassword);
     }
   } catch (error) {
@@ -308,6 +389,16 @@ const deleteSingleUser = async (req, res) => {
       .json({ message: "Unauthorized. Only admin can delete." });
   }
   try {
+    const { id } = req.params; // Récupération de l'ID depuis les paramètres de la requête
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: Number(id) }
+    });
+    // Vérifier si le user existe
+    if (!existingUser) {
+      return res.status(404).json({ message: "User non trouvé" });
+    }
+
     const deleteUser = await prisma.user.update({
       where: {
         id: Number(req.params.id)
@@ -316,6 +407,27 @@ const deleteSingleUser = async (req, res) => {
         status: req.body.status
       }
     });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "SUPPRESSION DU PERSONNEL",
+        auditableId: deleteUser.id,
+        auditableModel: "Personnel",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingUser, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: deleteUser,
+        timestamp: new Date()
+      }
+    });
+
     res.json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json(error.message);
