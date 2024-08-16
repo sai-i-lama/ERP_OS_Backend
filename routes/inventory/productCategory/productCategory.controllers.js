@@ -13,9 +13,9 @@ const createSingleProductCategory = async (req, res) => {
       const deletedProductCategory = await prisma.product_category.deleteMany({
         where: {
           id: {
-            in: req.body.map((id) => parseInt(id)),
-          },
-        },
+            in: req.body.map((id) => parseInt(id))
+          }
+        }
       });
       res.json(deletedProductCategory);
     } catch (error) {
@@ -28,10 +28,10 @@ const createSingleProductCategory = async (req, res) => {
       const createdProductCategory = await prisma.product_category.createMany({
         data: req.body.map((product_category) => {
           return {
-            name: product_category.name,
+            name: product_category.name
           };
         }),
-        skipDuplicates: true,
+        skipDuplicates: true
       });
       res.json(createdProductCategory);
     } catch (error) {
@@ -43,9 +43,30 @@ const createSingleProductCategory = async (req, res) => {
       // create single product_category from an object
       const createdProductCategory = await prisma.product_category.create({
         data: {
-          name: req.body.name,
-        },
+          name: req.body.name
+        }
       });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "Création d'une catégorie de produit",
+          auditableId: createdProductCategory.id,
+          auditableModel: "Catégorie Produit",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          newValues: createdProductCategory,
+          timestamp: new Date()
+        }
+      });
+
       res.json(createdProductCategory);
     } catch (error) {
       res.status(400).json(error.message);
@@ -60,11 +81,11 @@ const getAllProductCategory = async (req, res) => {
       // get all product_category
       const getAllProductCategory = await prisma.product_category.findMany({
         orderBy: {
-          id: "asc",
+          id: "asc"
         },
         include: {
-          product: true,
-        },
+          product: true
+        }
       });
       res.json(getAllProductCategory);
     } catch (error) {
@@ -77,13 +98,13 @@ const getAllProductCategory = async (req, res) => {
       // get all product_category paginated
       const getAllProductCategory = await prisma.product_category.findMany({
         orderBy: {
-          id: "asc",
+          id: "asc"
         },
         include: {
-          product: true,
+          product: true
         },
         skip: parseInt(skip),
-        take: parseInt(limit),
+        take: parseInt(limit)
       });
       res.json(getAllProductCategory);
     } catch (error) {
@@ -97,11 +118,11 @@ const getSingleProductCategory = async (req, res) => {
   try {
     const singleProductCategory = await prisma.product_category.findUnique({
       where: {
-        id: parseInt(req.params.id),
+        id: parseInt(req.params.id)
       },
       include: {
-        product: true,
-      },
+        product: true
+      }
     });
     for (let product of singleProductCategory.product) {
       if (product.imageName) {
@@ -119,12 +140,42 @@ const updateSingleProductCategory = async (req, res) => {
   try {
     const updatedProductCategory = await prisma.product_category.update({
       where: {
-        id: parseInt(req.params.id),
+        id: parseInt(req.params.id)
       },
       data: {
-        name: req.body.name,
-      },
+        name: req.body.name
+      }
     });
+
+    const existingProductCategory = await prisma.product_category.findUnique({
+      where: {id: Number(req.params.id)}
+    })
+
+    if(!existingProductCategory){
+      return res.status(404).json({ message: "catégorie de produit non trouvée" })
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        action: "Création d'une catégorie de produit",
+        auditableId: updatedProductCategory.id,
+        auditableModel: "Catégorie Produit",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingProductCategory, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: updatedProductCategory,
+        timestamp: new Date()
+      }
+    });
+
+
     res.json(updatedProductCategory);
   } catch (error) {
     res.status(400).json(error.message);
@@ -136,9 +187,39 @@ const deleteSingleProductCategory = async (req, res) => {
   try {
     const deletedProductCategory = await prisma.product_category.delete({
       where: {
-        id: parseInt(req.params.id),
-      },
+        id: parseInt(req.params.id)
+      }
     });
+
+    const existingProductCategory = await prisma.product_category.findUnique({
+      where: {id: Number(req.params.id)}
+    })
+
+    if(!existingProductCategory){
+      return res.status(404).json({ message: "catégorie de produit non trouvée" })
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        action: "Création d'une catégorie de produit",
+        auditableId: deletedProductCategory.id
+        ,
+        auditableModel: "Catégorie Produit",
+        ActorAuditableModel: req.authenticatedEntityType,
+        IdUser:
+          req.authenticatedEntityType === "user"
+            ? req.authenticatedEntity.id
+            : null,
+        IdCustomer:
+          req.authenticatedEntityType === "customer"
+            ? req.authenticatedEntity.id
+            : null,
+        oldValues: existingProductCategory, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        newValues: deletedProductCategory,
+        timestamp: new Date()
+      }
+    });
+
     res.json(deletedProductCategory);
   } catch (error) {
     res.status(400).json(error.message);
@@ -151,5 +232,5 @@ module.exports = {
   getAllProductCategory,
   getSingleProductCategory,
   updateSingleProductCategory,
-  deleteSingleProductCategory,
+  deleteSingleProductCategory
 };

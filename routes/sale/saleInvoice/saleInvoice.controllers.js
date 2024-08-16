@@ -110,11 +110,24 @@ const createSingleSaleInvoice = async (req, res) => {
             id: Number(customer_id)
           }
         },
-        user: {
-          connect: {
-            id: Number(user_id)
-          }
-        },
+        creatorType: req.authenticatedEntityType,
+        // Utilisation de 'user' pour la relation avec l'utilisateur
+        user:
+          req.authenticatedEntityType === "user"
+            ? {
+                connect: {
+                  id: Number(req.authenticatedEntity.id)
+                }
+              }
+            : undefined,
+        customerRelation:
+          req.authenticatedEntityType === "customer"
+            ? {
+                connect: {
+                  id: Number(req.authenticatedEntity.id)
+                }
+              }
+            : undefined,
         note: note,
         saleInvoiceProduct: {
           create: saleInvoiceProduct.map((product) => ({
@@ -134,8 +147,8 @@ const createSingleSaleInvoice = async (req, res) => {
 
     await prisma.auditLog.create({
       data: {
-        action: "CREATION DE COMMANDE",
-        auditableId: createdInvoice.numCommande,
+        action: "Création d'une commande",
+        auditableId: createdInvoice.id,
         auditableModel: "Commande",
         ActorAuditableModel: req.authenticatedEntityType,
         IdUser:
@@ -255,6 +268,10 @@ const getAllSaleInvoice = async (req, res) => {
         profit: true
       },
       where: {
+        date: {
+          gte: new Date(req.query.startdate),
+          lte: new Date(req.query.enddate)
+        },
         type_saleInvoice: "produit_fini"
       }
     });
@@ -894,8 +911,8 @@ const updateSaleInvoice = async (req, res) => {
 
     await prisma.auditLog.create({
       data: {
-        action: "MODIFICATION DE LA COMMANDE",
-        auditableId: updatedInvoice.numCommande,
+        action: "Modification des données d'une commande",
+        auditableId: updatedInvoice.id,
         auditableModel: "Commande",
         ActorAuditableModel: req.authenticatedEntityType,
         IdUser:

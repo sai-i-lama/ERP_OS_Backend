@@ -24,10 +24,10 @@ model user {
   address        String?
   blood_group    String?
   image          String?
-  saleInvoice    saleInvoice[]
   status         Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  saleInvoice    saleInvoice[] @relation(name: "UserSaleInvoice")
   AuditLog       auditLog[]
 }
 
@@ -47,19 +47,20 @@ model auditLog {
 }
 
 model customer {
-  id           Int            @id @default(autoincrement())
-  username     String
-  phone        String         @unique
-  address      String
-  password     String
-  email        String?        @unique
-  status       Boolean        @default(true)
-  role         String
-  saleInvoice  saleInvoice[]
-  created_at   DateTime       @default(now())
-  updated_at   DateTime       @updatedAt
-  notification notification[]
-  auditLog     auditLog[]
+  id                  Int            @id @default(autoincrement())
+  username            String
+  phone               String         @unique
+  address             String
+  password            String
+  email               String?        @unique
+  status              Boolean        @default(true)
+  role                String
+  saleInvoice         saleInvoice[]  @relation(name: "CustomerSaleInvoice")
+  creatorSaleInvoices saleInvoice[]  @relation(name: "CustomerCreatorSaleInvoice")
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+  notification        notification[]
+  auditLog            auditLog[]
 }
 
 model notification {
@@ -156,27 +157,29 @@ model purchaseInvoiceProduct {
 }
 
 model saleInvoice {
-  id                 Int                  @id @default(autoincrement())
-  date               DateTime
-  total_amount       Float
-  discount           Float
-  paid_amount        Float
-  due_amount         Float
-  profit             Float
-  customer           customer             @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  customer_id        Int
-  user               user                 @relation(fields: [user_id], references: [id])
-  user_id            Int
-  note               String?
-  delivred           Boolean              @default(false)
-  consuter           Boolean              @default(false)
-  ready              Boolean              @default(false)
-  numCommande        String?              @unique
-  type_saleInvoice   String
+  id                  Int                  @id @default(autoincrement())
+  date                DateTime
+  total_amount        Float
+  discount            Float
+  paid_amount         Float
+  due_amount          Float
+  profit              Float
+  customer            customer             @relation(name: "CustomerSaleInvoice", fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CustomerSaleInvoiceRelation")
+  customer_id         Int
+  creatorType         String // Type du créateur ("user" ou "customer")
+  user_id          Int // ID du créateur (user ou customer)
+  note                String?
+  delivered           Boolean              @default(false)
+  consuter            Boolean              @default(false)
+  ready               Boolean              @default(false)
+  numCommande         String?              @unique
+  type_saleInvoice    String
   saleInvoiceProduct saleInvoiceProduct[]
   returnSaleInvoice  returnSaleInvoice[]
-  created_at         DateTime             @default(now())
-  updated_at         DateTime             @updatedAt
+  created_at          DateTime             @default(now())
+  updated_at          DateTime             @updatedAt
+  user                user?                @relation(name: "UserSaleInvoice", fields: [user_id], references: [id], map: "UserSaleInvoiceRelation")
+  customerRelation    customer?            @relation(name: "CustomerCreatorSaleInvoice", fields: [user_id], references: [id], map: "CustomerCreatorSaleInvoiceRelation")
 }
 
 model saleInvoiceProduct {

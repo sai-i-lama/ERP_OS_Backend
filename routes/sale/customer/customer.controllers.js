@@ -19,16 +19,7 @@ const createSingleCustomer = async (req, res) => {
         }
       });
 
-      await prisma.auditLog.create({
-        data: {
-          action: "DELETE_MANY_CUSTOMERS",
-          // modelId: Number(req.body.map((id) => id).join(', ')),
-          modelName: "Customer",
-          oldValues: deletedAccount, // Les anciennes valeurs supprimées
-          newValues: null,
-          userId: Number(req.auth.sub)
-        }
-      });
+      
 
       res.json(deletedAccount);
     } catch (error) {
@@ -48,16 +39,6 @@ const createSingleCustomer = async (req, res) => {
           status: customer.status
         })),
         skipDuplicates: true
-      });
-
-      await prisma.auditLog.create({
-        data: {
-          action: "CREATE_MANY",
-          model: "Customer",
-          oldValue: null,
-          newValue: createdCustomers, // Les nouvelles valeurs créées
-          userId: userId
-        }
       });
 
       res.json(createdCustomers);
@@ -82,7 +63,7 @@ const createSingleCustomer = async (req, res) => {
 
       await prisma.auditLog.create({
         data: {
-          action: "CREATION DE CLIENT",
+          action: "Création d'un client",
           auditableId: createdCustomer.id,
           auditableModel: "Client",
           ActorAuditableModel: req.authenticatedEntityType,
@@ -400,7 +381,7 @@ const updateSingleCustomer = async (req, res) => {
     // Créer une entrée dans le journal d'audit
     await prisma.auditLog.create({
       data: {
-        action: "MODIFICATION DU CLIENT",
+        action: "Modifications des données d'un client",
         auditableId: updatedCustomer.id,
         auditableModel: "Client",
         ActorAuditableModel: req.authenticatedEntityType,

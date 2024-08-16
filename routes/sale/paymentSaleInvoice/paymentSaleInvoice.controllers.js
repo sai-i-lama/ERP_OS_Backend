@@ -42,6 +42,26 @@ const createSinglePaymentSaleInvoice = async (req, res) => {
           order: saleInvoice
         });
       }
+
+      await prisma.auditLog.create({
+        data: {
+          action: "Payement d'une dette",
+          auditableId: transaction1.related_id,
+          auditableModel: "Commande",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          newValues: transaction1,
+          timestamp: new Date()
+        }
+      });
     }
 
     if (parseFloat(req.body.discount) > 0) {
@@ -54,6 +74,26 @@ const createSinglePaymentSaleInvoice = async (req, res) => {
           particulars: `Discount given of Sale Invoice #${req.body.sale_invoice_no}`,
           type: "sale",
           related_id: parseInt(req.body.sale_invoice_no)
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "Attribution d'une remise",
+          auditableId: transaction2.related_id,
+          auditableModel: "Commande",
+          ActorAuditableModel: req.authenticatedEntityType,
+          IdUser:
+            req.authenticatedEntityType === "user"
+              ? req.authenticatedEntity.id
+              : null,
+          IdCustomer:
+            req.authenticatedEntityType === "customer"
+              ? req.authenticatedEntity.id
+              : null,
+          oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          newValues: transaction2,
+          timestamp: new Date()
         }
       });
     }
