@@ -1,6 +1,6 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient } = require("@prisma/client");
-const { notifyUser } = require("../../websocketNotification");
+const { notifyUserOrCustomer } = require("../../websocketNotification");
 const prisma = new PrismaClient();
 
 const createSinglePaymentSaleInvoice = async (req, res) => {
@@ -36,10 +36,11 @@ const createSinglePaymentSaleInvoice = async (req, res) => {
       });
 
       if (client) {
-        notifyUser(clientId, {
-          type: "new_by_commande",
-          message: `Votre commande ${req.body.sale_invoice_no} a été payée d'un montant de ${amount} !`,
-          order: saleInvoice
+        // Notifier le client associé à la commande
+        await notifyUserOrCustomer({
+          customerId: clientId,
+          message: `La dette correspondant à Votre commande N°: ${saleInvoice.numCommande} a été payée d'une valeur de: ${amount} fcfa.`,
+          type: "new_by_commande"
         });
       }
 
