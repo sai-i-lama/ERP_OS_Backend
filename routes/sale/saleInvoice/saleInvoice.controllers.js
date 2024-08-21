@@ -1,6 +1,9 @@
 const { getPagination } = require("../../../utils/query");
 const { PrismaClient } = require("@prisma/client");
-const { notifyUser, notifyAllUsers } = require("../../websocketNotification");
+const {
+  notifyUserOrCustomer,
+  notifyAllUsers
+} = require("../../websocketNotification");
 const prisma = new PrismaClient();
 
 const createSingleSaleInvoice = async (req, res) => {
@@ -165,6 +168,25 @@ const createSingleSaleInvoice = async (req, res) => {
       }
     });
 
+    if (
+      req.authenticatedEntityType === "customer" &&
+      type_saleInvoice === "produit_fini"
+    ) {
+      // Notifier tous les utilisateurs qu'une nouvelle commande a été créée
+      await notifyAllUsers(
+        `Nouvelle commande créée avec ID : ${createdInvoice.numCommande} par le client ${req.authenticatedEntity.id}`
+      );
+    }
+
+    if (req.authenticatedEntityType === "user") {
+      // Notifier le client associé à la commande
+      await notifyUserOrCustomer({
+        customerId: createdInvoice.customer_id,
+        message: `Votre commande N°: ${createdInvoice.numCommande} a été créée et la valeur payée est de: ${createdInvoice.paid_amount} fcfa.`,
+        type: "order"
+      });
+    }
+
     // Create journal entries
     if (parseFloat(paid_amount) > 0) {
       await prisma.transaction.create({
@@ -178,18 +200,6 @@ const createSingleSaleInvoice = async (req, res) => {
           related_id: createdInvoice.id
         }
       });
-      const clientId = createdInvoice.customer_id;
-      const client = await prisma.customer.findUnique({
-        where: { id: clientId }
-      });
-
-      if (client) {
-        notifyUser(clientId, {
-          type: "by_commande",
-          message: `Votre commande ${createdInvoice.numCommande} a été payée d'un montant de ${createdInvoice.paid_amount} !`,
-          order: createdInvoice
-        });
-      }
     }
 
     const due_amount_journal =
@@ -235,14 +245,6 @@ const createSingleSaleInvoice = async (req, res) => {
         })
       )
     );
-
-    if (type_saleInvoice === "produit_fini") {
-      notifyAllUsers({
-        type: "new_order",
-        message: `Nouvelle commande créée avec ID : ${createdInvoice.numCommande}`,
-        order: createdInvoice
-      });
-    }
 
     console.log(createdInvoice);
     res.json({
@@ -864,7 +866,7 @@ const getSingleSaleInvoice = async (req, res) => {
 
 const updateSaleInvoice = async (req, res) => {
   const { id } = req.params;
-  const { delivred, ready, consumed } = req.body;
+  const { delivred, ready } = req.body;
 
   try {
     // Étape 1: Récupération des anciennes valeurs
@@ -882,8 +884,7 @@ const updateSaleInvoice = async (req, res) => {
       where: { id: Number(id) },
       data: {
         ...(delivred !== undefined && { delivred }),
-        ...(ready !== undefined && { ready }),
-        ...(consumed !== undefined && { consumed })
+        ...(ready !== undefined && { ready })
       },
       include: {
         customer: true // Inclure les informations du client
@@ -901,10 +902,10 @@ const updateSaleInvoice = async (req, res) => {
 
       if (client) {
         // Assurez-vous que notifyUser accepte l'identifiant du client
-        notifyUser(clientId, {
-          type: "update_order",
-          message: `Votre commande ${updatedInvoice.numCommande} est prête!`,
-          order: updatedInvoice
+        await notifyUserOrCustomer({
+          customerId: updatedInvoice.customer_id,
+          message: `Votre commande N°: ${updatedInvoice.numCommande} est prête.`,
+          type: "update_order"
         });
       }
     }

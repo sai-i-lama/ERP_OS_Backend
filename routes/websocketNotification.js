@@ -42,91 +42,129 @@ const io = socketIo(server, {
 
 const prisma = new PrismaClient();
 
-// Objet pour garder une trace des sockets des utilisateurs
+// Suivi des sockets des utilisateurs et clients
 const userSockets = {};
+const customerSockets = {};
 
 io.on("connection", (socket) => {
-  console.log("New client connecté");
+  console.log("New client connected");
 
-  // Écoute de l'identification de l'utilisateur
-  socket.on("identify", (userId) => {
-    console.log(`User identified: ${userId}`);
-    userSockets[userId] = socket.id;
-
-    // Envoyer les notifications non lues lors de la connexion
-    (async () => {
-      const userIdInt = parseInt(userId, 10); // Convertir userId en entier
+  socket.on("identify", async (data) => {
+    const { userId, customerId } = data;
+    if (userId) {
+      userSockets[userId] = socket.id;
+      // Envoyer les notifications non lues lors de la connexion
       const notifications = await prisma.notification.findMany({
-        where: {
-          cusId: userIdInt,
-          isRead: false
-        }
+        where: { userId: parseInt(userId, 10), isRead: false }
       });
-
       notifications.forEach((notification) => {
         socket.emit("user-notification", notification);
       });
-    })();
+    } else if (customerId) {
+      customerSockets[customerId] = socket.id;
+      // Envoyer les notifications non lues lors de la connexion
+      const notifications = await prisma.notification.findMany({
+        where: { customerId: parseInt(customerId, 10), isRead: false }
+      });
+      notifications.forEach((notification) => {
+        socket.emit("customer-notification", notification);
+      });
+    }
   });
 
   socket.on("disconnect", () => {
-    console.log("Client déconnecté");
-    // Suppression de l'utilisateur de l'objet userSockets
-    for (const [userId, socketId] of Object.entries(userSockets)) {
-      if (socketId === socket.id) {
-        delete userSockets[userId];
-        break;
-      }
-    }
+    // Supprimer l'utilisateur ou le client de l'objet userSockets ou customerSockets
+    Object.keys(userSockets).forEach((userId) => {
+      if (userSockets[userId] === socket.id) delete userSockets[userId];
+    });
+    Object.keys(customerSockets).forEach((customerId) => {
+      if (customerSockets[customerId] === socket.id)
+        delete customerSockets[customerId];
+    });
   });
 });
 
-const readNotif = async (req, res) => {
-  const { userId } = req.body;
+const notifyUserOrCustomer = async (notificationData) => {
+  const { userId, customerId, message, type } = notificationData;
 
-  if (!userId) {
-    return res.status(400).json({ error: "User ID is required" });
+  if (userId) {
+    // Créer et envoyer une notification pour un utilisateur
+    const notification = await prisma.notification.create({
+      data: {
+        userId: parseInt(userId, 10),
+        message,
+        type,
+        isRead: false
+      }
+    });
+    const socketId = userSockets[userId];
+    if (socketId) {
+      io.to(socketId).emit("user-notification", notification);
+    }
+  } else if (customerId) {
+    // Créer et envoyer une notification pour un client
+    const notification = await prisma.notification.create({
+      data: {
+        customerId: parseInt(customerId, 10),
+        message,
+        type,
+        isRead: false
+      }
+    });
+    const socketId = customerSockets[customerId];
+    if (socketId) {
+      io.to(socketId).emit("customer-notification", notification);
+    }
+  }
+};
+
+const notifyAllUsers = async (message) => {
+  const users = await prisma.user.findMany();
+  for (const user of users) {
+    const notification = await prisma.notification.create({
+      data: {
+        userId: user.id,
+        message,
+        type: "general",
+        isRead: false
+      }
+    });
+    const socketId = userSockets[user.id];
+    if (socketId) {
+      io.to(socketId).emit("user-notification", notification);
+    }
+  }
+};
+
+const readNotif = async (req, res) => {
+  const { userId, customerId } = req.body;
+
+  if (!userId && !customerId) {
+    return res
+      .status(400)
+      .json({ error: "User ID or Customer ID is required" });
   }
 
   try {
-    await prisma.notification.updateMany({
-      where: { cusId: parseInt(userId, 10), isRead: false },
-      data: { isRead: true }
-    });
-    res.status(200).json({ message: "Notifications marked as read" });
+    if (userId) {
+      await prisma.notification.updateMany({
+        where: { userId: parseInt(userId, 10), isRead: false },
+        data: { isRead: true }
+      });
+      res.status(200).json({ message: "User notifications marked as read" });
+    } else if (customerId) {
+      await prisma.notification.updateMany({
+        where: { customerId: parseInt(customerId, 10), isRead: false },
+        data: { isRead: true }
+      });
+      res
+        .status(200)
+        .json({ message: "Customer notifications marked as read" });
+    }
   } catch (error) {
     console.error("Error marking notifications as read:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Fonction pour notifier un utilisateur spécifique
-const notifyUser = async (userId, notificationData) => {
-  // Convertir userId en entier
-  const userIdInt = parseInt(userId, 10);
-
-  // Créer la notification dans la base de données
-  const notification = await prisma.notification.create({
-    data: {
-      cusId: userIdInt,
-      message: notificationData.message,
-      type: notificationData.type,
-      isRead: false
-    }
-  });
-
-  // Envoyer la notification si l'utilisateur est connecté
-  const socketId = userSockets[userIdInt];
-  if (socketId) {
-    io.to(socketId).emit("user-notification", notification);
-  } else {
-    console.log(`User with ID ${userIdInt} is not connected.`);
-  }
-};
-
-// Fonction pour notifier tous les utilisateurs
-const notifyAllUsers = (message) => {
-  io.emit("staff-notification", message);
-};
-
-module.exports = { io, notifyUser, notifyAllUsers, readNotif };
+module.exports = { io, notifyAllUsers, notifyUserOrCustomer, readNotif };

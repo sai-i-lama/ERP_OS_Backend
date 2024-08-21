@@ -43,7 +43,7 @@ const permissions = [
   "updateProduct",
   "deleteProduct",
 
-  "createCustomer",
+  // "createCustomer",
   "viewCustomer",
   "updateCustomer",
   "deleteCustomer",
@@ -162,11 +162,11 @@ const settings = {
 
 const professionalPermissions = [
   "professionalUser", "viewSaleInvoice", "viewProduct", "viewProductCategory", 
-  "viewCustomer", "createSaleInvoice", "createCustomer","updateCustomer",
+  "viewCustomer", "createSaleInvoice","updateCustomer",
 ];
 const particularPermissions = [
   "professionalUser", "viewSaleInvoice", "viewProduct", "viewProductCategory", 
-  "viewCustomer", "createSaleInvoice", "createCustomer","updateCustomer"
+  "viewCustomer", "createSaleInvoice","updateCustomer"
 ];
 
 async function main() {
