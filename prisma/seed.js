@@ -185,6 +185,7 @@ async function main() {
         email: "admin@gmail.com",
         password: adminHash,
         role: "admin",
+        id_no: "saï-0000"
       },
     });
   }
@@ -201,6 +202,7 @@ async function main() {
         email: "staff@gmail.com",
         password: staffHash,
         role: "staff",
+        id_no: "saï-0001"
       },
     });
   }
