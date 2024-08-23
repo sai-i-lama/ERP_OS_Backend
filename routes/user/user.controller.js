@@ -10,6 +10,29 @@ const saltRounds = 10;
 const jwt = require("jsonwebtoken");
 const secret = process.env.JWT_SECRET;
 
+const checkMatricule = async (req, res) => {
+  try {
+    const { id_no } = req.body;
+
+    const userWithIdNo = await prisma.user.findUnique({
+      where: {
+        id_no: id_no
+      }
+    });
+
+    if (userWithIdNo) {
+      return res.json({ success: true, message: "ID number found" });
+    } else {
+      return res
+        .status(404)
+        .json({ success: false, message: "ID number not found" });
+    }
+  } catch (error) {
+    console.error("Error checking ID number:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -131,7 +154,7 @@ const register = async (req, res) => {
     });
 
     //  ####################################################################################################################################################################################
-    
+
     // données a envoyer a l'application de laravel
     const userDataForLaravel = {
       name: req.body.username,
@@ -442,5 +465,6 @@ module.exports = {
   getAllUser,
   getSingleUser,
   updateSingleUser,
-  deleteSingleUser
+  deleteSingleUser,
+  checkMatricule
 };

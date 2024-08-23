@@ -7,30 +7,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model user {
-  id             Int            @id @default(autoincrement())
-  username       String
-  password       String
-  role           String
-  email          String?        @unique
-  salary         Int?
-  designation    designation?   @relation(fields: [designation_id], references: [id])
-  designation_id Int?
-  join_date      DateTime?
-  leave_date     DateTime?
-  id_no          String?        @unique
-  department     String?
-  phone          String?        @unique
-  address        String?
-  blood_group    String?
-  image          String?
-  status         Boolean        @default(true)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  saleInvoice    saleInvoice[]  @relation(name: "UserSaleInvoice")
-  AuditLog       auditLog[]
-  notification   notification[]
-}
+  model user {
+    id             Int            @id @default(autoincrement())
+    username       String
+    password       String
+    role           String
+    email          String?        @unique
+    salary         Int?
+    designation    designation?   @relation(fields: [designation_id], references: [id])
+    designation_id Int?
+    join_date      DateTime?
+    leave_date     DateTime?
+    id_no          String?        @unique
+    department     String?
+    phone          String?        @unique
+    address        String?
+    blood_group    String?
+    image          String?
+    status         Boolean        @default(true)
+    createdAt      DateTime       @default(now())
+    updatedAt      DateTime       @updatedAt
+    saleInvoice    saleInvoice[]  @relation(name: "UserSaleInvoice")
+    AuditLog       auditLog[]
+    notification   notification[]
+  }
 
 model auditLog {
   id                  Int       @id @default(autoincrement())
