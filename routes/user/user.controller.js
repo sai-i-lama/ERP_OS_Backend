@@ -124,6 +124,7 @@ const register = async (req, res) => {
         address: req.body.address,
         blood_group: req.body.blood_group,
         image: req.body.image,
+        gender: req.body.gender,
         status: req.body.status,
         designation: {
           connect: {
@@ -162,7 +163,7 @@ const register = async (req, res) => {
       password: req.body.password,
       role_id: 1, // Mettez le rôle souhaité ici
       phone: req.body.phone,
-      gender: "Homme",
+      gender: req.body.gender,
       adress: req.body.address,
       created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
       updated_at: moment().format("YYYY-MM-DD HH:mm:ss")

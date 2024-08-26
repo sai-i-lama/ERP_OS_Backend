@@ -19,8 +19,6 @@ const createSingleCustomer = async (req, res) => {
         }
       });
 
-      
-
       res.json(deletedAccount);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -57,9 +55,31 @@ const createSingleCustomer = async (req, res) => {
           password: hash,
           role: req.body.role,
           email: req.body.email,
-          status: req.body.status
+          status: req.body.status,
+          gender: req.body.gender
         }
       });
+
+      // données a envoyer a l'application de laravel
+      const CustomerDataForLaravel = {
+        name: req.body.username,
+        email: req.body.email,
+        password: req.body.password,
+        role_id: 3, // Mettez le rôle souhaité ici
+        phone: req.body.phone,
+        gender: req.body.gender,
+        adress: req.body.address,
+        created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
+        updated_at: moment().format("YYYY-MM-DD HH:mm:ss")
+      };
+
+      // Envoyer les données à l'API de votre application Laravel
+
+      const laravelApiUrl = "http://127.0.0.1:8000/api/users/register";
+      console.log("Sending data to Laravel API:", CustomerDataForLaravel);
+
+      const response = await axios.post(laravelApiUrl, CustomerDataForLaravel);
+      console.log("Received response from Laravel API:", response.data);
 
       await prisma.auditLog.create({
         data: {
