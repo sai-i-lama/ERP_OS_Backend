@@ -58,6 +58,8 @@ model customer {
   status              Boolean        @default(true)
   role                String
   gender              String
+  source              String
+  appChoice           String        @default("false")
   saleInvoice         saleInvoice[]  @relation(name: "CustomerSaleInvoice")
   creatorSaleInvoices saleInvoice[]  @relation(name: "CustomerCreatorSaleInvoice")
   created_at          DateTime       @default(now())
