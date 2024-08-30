@@ -89,7 +89,7 @@ const permissions = [
   "updateRolePermission",
   "deleteRolePermission",
 
-  "createUser",
+  // "createUser",
   "viewUser",
   "updateUser",
   "deleteUser",

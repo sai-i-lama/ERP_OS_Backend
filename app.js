@@ -29,7 +29,7 @@ const productCategoryRoutes = require("./routes/inventory/productCategory/produc
 const accountRoutes = require("./routes/accounting/account/account.routes");
 const settingRoutes = require("./routes/setting/setting.routes");
 const smsRouter = require("./routes/sms/sms.routes");
-const getAuditLogs = require('./routes/AuditLog/auditlog.routes')
+const getAuditLogs = require("./routes/AuditLog/auditlog.routes");
 /* variables */
 // express app instance
 const app = express();
@@ -40,6 +40,7 @@ let allowedOrigins = [
   "http://127.0.0.1:3001",
   "http://localhost:5001",
   "http://localhost:5000",
+  "http://127.0.0.1:5000",
   "http://localhost:8000",
   "http://127.0.0.1:8000",
   "http://127.0.0.1:8080",
@@ -65,27 +66,21 @@ app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 // morgan: log requests to console in dev environment
 app.use(morgan("dev"));
 // allows cors access from allowedOrigins array
-// app.use(
-//   cors({
-//     origin: function (origin, callback) {
-//       // allow requests with no origin (like mobile apps or curl requests)
-//       if (!origin) return callback(null, true);
-//       if (allowedOrigins.indexOf(origin) === -1) {
-//         let msg =
-//           "The CORS policy for this site does not " +
-//           "allow access from the specified Origin.";
-//         return callback(new Error(msg), false);
-//       }
-//       return callback(null, true);
-//     }
-//   })
-// );
-
 app.use(
   cors({
-    origin: '*', // Accepter toutes les origines
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes HTTP autorisées
-    allowedHeaders: ['Content-Type', 'Authorization'], // En-têtes autorisés
+    origin: function (origin, callback) {
+      // Autoriser les requêtes sans origine (applications mobiles, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        let msg =
+          "The CORS policy for this site does not " +
+          "allow access from the specified Origin.";
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Méthodes HTTP autorisées
+    allowedHeaders: ["Content-Type", "Authorization"] // En-têtes autorisés
   })
 );
 
