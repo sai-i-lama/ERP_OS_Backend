@@ -7,8 +7,6 @@ const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
 const createSingleCustomer = async (req, res) => {
-  const userId = req.user?.id; // Assurez-vous que l'ID utilisateur est récupéré correctement ici
-
   if (req.query.query === "deletemany") {
     try {
       const deletedAccount = await prisma.customer.deleteMany({
@@ -18,8 +16,6 @@ const createSingleCustomer = async (req, res) => {
           }
         }
       });
-
-      
 
       res.json(deletedAccount);
     } catch (error) {
@@ -48,6 +44,15 @@ const createSingleCustomer = async (req, res) => {
     }
   } else {
     try {
+      // Vérifier si l'email existe déjà dans la base de données
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { email: req.body.email }
+      });
+
+      if (existingCustomer) {
+        return res.status(400).json({ message: "L'email existe déjà." });
+      }
+
       const hash = await bcrypt.hash(req.body.password, saltRounds);
       const createdCustomer = await prisma.customer.create({
         data: {
@@ -57,7 +62,9 @@ const createSingleCustomer = async (req, res) => {
           password: hash,
           role: req.body.role,
           email: req.body.email,
-          status: req.body.status
+          status: req.body.status,
+          gender: req.body.gender,
+          source: req.body.source
         }
       });
 
@@ -75,7 +82,7 @@ const createSingleCustomer = async (req, res) => {
             req.authenticatedEntityType === "customer"
               ? req.authenticatedEntity.id
               : null,
-          oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+          oldValues: undefined,
           newValues: createdCustomer,
           timestamp: new Date()
         }
@@ -428,6 +435,5 @@ module.exports = {
   getAllCustomer,
   getSingleCustomer,
   updateSingleCustomer,
-  deleteSingleCustomer
-  // loginCustomer
+  deleteSingleCustomer,
 };

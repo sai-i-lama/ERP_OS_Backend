@@ -24,6 +24,7 @@ datasource db {
     address        String?
     blood_group    String?
     image          String?
+    gender         String
     status         Boolean        @default(true)
     createdAt      DateTime       @default(now())
     updatedAt      DateTime       @updatedAt
@@ -56,6 +57,9 @@ model customer {
   email               String?        @unique
   status              Boolean        @default(true)
   role                String
+  gender              String
+  source              String
+  appChoice           String        @default("false")
   saleInvoice         saleInvoice[]  @relation(name: "CustomerSaleInvoice")
   creatorSaleInvoices saleInvoice[]  @relation(name: "CustomerCreatorSaleInvoice")
   created_at          DateTime       @default(now())

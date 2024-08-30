@@ -2,7 +2,6 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const axios = require("axios");
 require("dotenv").config();
-const moment = require("moment");
 
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
@@ -124,6 +123,7 @@ const register = async (req, res) => {
         address: req.body.address,
         blood_group: req.body.blood_group,
         image: req.body.image,
+        gender: req.body.gender,
         status: req.body.status,
         designation: {
           connect: {
@@ -153,36 +153,9 @@ const register = async (req, res) => {
       }
     });
 
-    //  ####################################################################################################################################################################################
-
-    // données a envoyer a l'application de laravel
-    const userDataForLaravel = {
-      name: req.body.username,
-      email: req.body.email,
-      password: req.body.password,
-      role_id: 1, // Mettez le rôle souhaité ici
-      phone: req.body.phone,
-      gender: "Homme",
-      adress: req.body.address,
-      created_at: moment().format("YYYY-MM-DD HH:mm:ss"),
-      updated_at: moment().format("YYYY-MM-DD HH:mm:ss")
-    };
-
-    // Envoyer les données à l'API de votre application Laravel
-
-    const laravelApiUrl = "http://127.0.0.1:8000/api/users/register";
-    console.log("Sending data to Laravel API:", userDataForLaravel);
-
-    const response = await axios.post(laravelApiUrl, userDataForLaravel);
-    console.log("Received response from Laravel API:", response.data);
-
     const { password, ...userWithoutPassword } = createUser;
     res.json(userWithoutPassword);
   } catch (error) {
-    console.error(
-      "Error in register function:",
-      error.response ? error.response.data : error.message
-    );
     res.status(500).json(error.response ? error.response.data : error.message);
   }
 };

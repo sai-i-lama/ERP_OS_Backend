@@ -89,7 +89,7 @@ const permissions = [
   "updateRolePermission",
   "deleteRolePermission",
 
-  "createUser",
+  // "createUser",
   "viewUser",
   "updateUser",
   "deleteUser",
@@ -185,7 +185,8 @@ async function main() {
         email: "admin@gmail.com",
         password: adminHash,
         role: "admin",
-        id_no: "saï-0000"
+        id_no: "saï-0000",
+        gender:"Homme"
       },
     });
   }
@@ -202,7 +203,8 @@ async function main() {
         email: "staff@gmail.com",
         password: staffHash,
         role: "staff",
-        id_no: "saï-0001"
+        id_no: "saï-0001",
+        gender:"Homme"
       },
     });
   }
