@@ -38,16 +38,19 @@ const app = express();
 let allowedOrigins = [
   "http://localhost:3001",
   "http://127.0.0.1:3001",
-  "http://localhost:5001",
-  "http://localhost:5000",
   "http://127.0.0.1:5000",
   "http://localhost:8000",
   "http://127.0.0.1:8000",
   "http://127.0.0.1:8080",
   "http://localhost:8080",
+  "http://127.0.0.1:5500",
+  "http://localhost:5500",
   "https://erp-os-frontend.vercel.app",
-  "http://192.168.1.176:3000",
-  "http://192.168.1.176:5000"
+
+  "http://192.168.1.176",
+  "http://192.168.1.176:8000",
+  "http://192.168.1.176:5000",
+  "http://192.168.1.176:3001"
 ];
 
 // limit the number of requests from a single IP address
@@ -79,7 +82,7 @@ app.use(
       }
       return callback(null, true);
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Méthodes HTTP autorisées
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // Méthodes HTTP autorisées
     allowedHeaders: ["Content-Type", "Authorization"] // En-têtes autorisés
   })
 );

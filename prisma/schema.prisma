@@ -56,9 +56,9 @@ model customer {
   password            String
   email               String?        @unique
   status              Boolean        @default(true)
-  role                String
+  role                String         @default("Particulier")
   gender              String
-  source              String
+  source              String        @default("Stock/E-commerce")
   appChoice           String        @default("false")
   saleInvoice         saleInvoice[]  @relation(name: "CustomerSaleInvoice")
   creatorSaleInvoices saleInvoice[]  @relation(name: "CustomerCreatorSaleInvoice")
@@ -175,8 +175,9 @@ model saleInvoice {
   profit             Float
   customer           customer             @relation(name: "CustomerSaleInvoice", fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CustomerSaleInvoiceRelation")
   customer_id        Int
-  creatorType        String // Type du créateur ("user" ou "customer")
-  user_id            Int // ID du créateur (user ou customer)
+  creatorType        String               // Type du créateur ("user" ou "customer")
+  userCreatorId      Int?                 // ID de l'utilisateur créateur
+  customerCreatorId  Int?                 // ID du client créateur
   note               String?
   delivred           Boolean              @default(false)
   ready              Boolean              @default(false)
@@ -186,9 +187,10 @@ model saleInvoice {
   returnSaleInvoice  returnSaleInvoice[]
   created_at         DateTime             @default(now())
   updated_at         DateTime             @updatedAt
-  user               user?                @relation(name: "UserSaleInvoice", fields: [user_id], references: [id], map: "UserSaleInvoiceRelation")
-  customerRelation   customer?            @relation(name: "CustomerCreatorSaleInvoice", fields: [user_id], references: [id], map: "CustomerCreatorSaleInvoiceRelation")
+  userCreator               user?                @relation(name: "UserSaleInvoice", fields: [userCreatorId], references: [id], map: "UserSaleInvoiceRelation")
+  customerCreator   customer?            @relation(name: "CustomerCreatorSaleInvoice", fields: [customerCreatorId], references: [id], map: "CustomerCreatorSaleInvoiceRelation")
 }
+
 
 model saleInvoiceProduct {
   id                     Int         @id @default(autoincrement())
