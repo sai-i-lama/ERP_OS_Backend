@@ -11,7 +11,6 @@ const createSingleSaleInvoice = async (req, res) => {
     // Validate input data
     const {
       customer_id,
-      user_id,
       saleInvoiceProduct,
       date,
       discount,
@@ -23,7 +22,6 @@ const createSingleSaleInvoice = async (req, res) => {
 
     if (
       !customer_id ||
-      !user_id ||
       !saleInvoiceProduct ||
       !date ||
       !numCommande ||
@@ -32,7 +30,11 @@ const createSingleSaleInvoice = async (req, res) => {
       return res.status(400).json({ error: "Données manquantes" });
     }
 
-    // Check if customer exists
+    // Déterminez le type et l'ID du créateur
+    const creatorType = req.authenticatedEntityType; // Type de créateur ("user" ou "customer")
+    const creatorId = req.authenticatedEntity.id; // ID du créateur
+
+    // Vérifiez si le client existe
     const customer = await prisma.customer.findUnique({
       where: { id: Number(customer_id) }
     });
@@ -40,12 +42,24 @@ const createSingleSaleInvoice = async (req, res) => {
       return res.status(400).json({ error: "Client non trouvé" });
     }
 
-    // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id: Number(user_id) }
-    });
-    if (!user) {
-      return res.status(400).json({ error: "Utilisateur non trouvé" });
+    // Vérifiez si le créateur est valide
+    let user = null;
+    if (creatorType === "user") {
+      user = await prisma.user.findUnique({
+        where: { id: Number(creatorId) }
+      });
+      if (!user) {
+        return res.status(400).json({ error: "Utilisateur non trouvé" });
+      }
+    } else if (creatorType === "customer") {
+      const creatorCustomer = await prisma.customer.findUnique({
+        where: { id: Number(creatorId) }
+      });
+      if (!creatorCustomer) {
+        return res.status(400).json({ error: "Client créateur non trouvé" });
+      }
+    } else {
+      return res.status(400).json({ error: "Type de créateur non valide" });
     }
 
     // Calculate total sale price
@@ -97,7 +111,7 @@ const createSingleSaleInvoice = async (req, res) => {
       return res.status(400).json({ error: "Type de facture non valide" });
     }
 
-    // Create sale invoice
+    // Créez la facture si toutes les validations sont passées
     const createdInvoice = await prisma.saleInvoice.create({
       data: {
         date: new Date(formattedDate),
@@ -109,35 +123,22 @@ const createSingleSaleInvoice = async (req, res) => {
         profit: profit,
         due_amount: due_amount,
         customer: {
-          connect: {
-            id: Number(customer_id)
-          }
+          connect: { id: Number(customer_id) }
         },
-        creatorType: req.authenticatedEntityType,
-        // Utilisation de 'user' pour la relation avec l'utilisateur
-        user:
-          req.authenticatedEntityType === "user"
-            ? {
-                connect: {
-                  id: Number(req.authenticatedEntity.id)
-                }
-              }
+        userCreator:
+          creatorType === "user"
+            ? { connect: { id: Number(creatorId) } }
             : undefined,
-        customerRelation:
-          req.authenticatedEntityType === "customer"
-            ? {
-                connect: {
-                  id: Number(req.authenticatedEntity.id)
-                }
-              }
+        customerCreator:
+          creatorType === "customer"
+            ? { connect: { id: Number(creatorId) } }
             : undefined,
+        creatorType: creatorType,
         note: note,
         saleInvoiceProduct: {
           create: saleInvoiceProduct.map((product) => ({
             product: {
-              connect: {
-                id: Number(product.product_id)
-              }
+              connect: { id: Number(product.product_id) }
             },
             product_quantity: Number(product.product_quantity),
             product_sale_price: parseFloat(product.product_sale_price) || null,
@@ -148,33 +149,25 @@ const createSingleSaleInvoice = async (req, res) => {
       }
     });
 
+    // Log the creation in the audit log
     await prisma.auditLog.create({
       data: {
         action: "Création d'une commande",
         auditableId: createdInvoice.id,
         auditableModel: "Commande",
-        ActorAuditableModel: req.authenticatedEntityType,
-        IdUser:
-          req.authenticatedEntityType === "user"
-            ? req.authenticatedEntity.id
-            : null,
-        IdCustomer:
-          req.authenticatedEntityType === "customer"
-            ? req.authenticatedEntity.id
-            : null,
+        ActorAuditableModel: creatorType,
+        IdUser: creatorType === "user" ? creatorId : null,
+        IdCustomer: creatorType === "customer" ? creatorId : null,
         oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
         newValues: createdInvoice,
         timestamp: new Date()
       }
     });
 
-    if (
-      req.authenticatedEntityType === "customer" &&
-      type_saleInvoice === "produit_fini"
-    ) {
+    if (req.authenticatedEntityType === "customer") {
       // Notifier tous les utilisateurs qu'une nouvelle commande a été créée
       await notifyAllUsers(
-        `Nouvelle commande créée avec ID : ${createdInvoice.numCommande} par le client ${req.authenticatedEntity.id}`
+        `Nouvelle commande créée avec ID : ${createdInvoice.numCommande} par le client ${creatorId}`
       );
     }
 
@@ -302,7 +295,7 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
+                userCreatorId: Number(req.query.user),
                 customer_id: Number(req.query.customer),
                 type_saleInvoice: "produit_fini"
               }
@@ -329,10 +322,16 @@ const getAllSaleInvoice = async (req, res) => {
                     role: true
                   }
                 },
-                user: {
-                  select: {
-                    id: true,
-                    username: true
+                userCreator:{
+                  select:{
+                    id:true,
+                    username: true,
+                  }
+                },
+                customerCreator:{
+                  select:{
+                    id:true,
+                    username: true,
                   }
                 }
               },
@@ -341,7 +340,7 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
+                userCreatorId: Number(req.query.user),
                 customer_id: Number(req.query.customer),
                 type_saleInvoice: "produit_fini"
               }
@@ -366,7 +365,7 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
+                userCreatorId: Number(req.query.user),
                 type_saleInvoice: "produit_fini"
               }
             }),
@@ -390,10 +389,16 @@ const getAllSaleInvoice = async (req, res) => {
                     role: true
                   }
                 },
-                user: {
-                  select: {
-                    id: true,
-                    username: true
+                userCreator:{
+                  select:{
+                    id:true,
+                    username: true,
+                  }
+                },
+                customerCreator:{
+                  select:{
+                    id:true,
+                    username: true,
                   }
                 }
               },
@@ -402,7 +407,7 @@ const getAllSaleInvoice = async (req, res) => {
                   gte: new Date(req.query.startdate),
                   lte: new Date(req.query.enddate)
                 },
-                user_id: Number(req.query.user),
+                userCreatorId: Number(req.query.user),
                 customer_id: Number(req.query.customer),
                 type_saleInvoice: "produit_fini"
               }
@@ -454,10 +459,16 @@ const getAllSaleInvoice = async (req, res) => {
                     role: true
                   }
                 },
-                user: {
+                userCreator: {
                   select: {
                     id: true,
                     username: true
+                  }
+                },
+                customerCreator:{
+                  select:{
+                    id:true,
+                    username: true,
                   }
                 }
               },
@@ -512,10 +523,16 @@ const getAllSaleInvoice = async (req, res) => {
                     role: true
                   }
                 },
-                user: {
+                userCreator: {
                   select: {
                     id: true,
                     username: true
+                  }
+                },
+                customerCreator:{
+                  select:{
+                    id:true,
+                    username: true,
                   }
                 }
               },
@@ -683,7 +700,13 @@ const getSingleSaleInvoice = async (req, res) => {
           }
         },
         customer: true,
-        user: {
+        userCreator: {
+          select: {
+            id: true,
+            username: true
+          }
+        },
+        customerCreator: {
           select: {
             id: true,
             username: true
