@@ -38,6 +38,7 @@ const createSinglePaymentSaleInvoice = async (req, res) => {
       if (client) {
         // Notifier le client associé à la commande
         await notifyUserOrCustomer({
+          saleId:saleInvoice.id,
           customerId: clientId,
           message: `La dette correspondant à Votre commande N°: ${saleInvoice.numCommande} a été payée d'une valeur de: ${amount} fcfa.`,
           type: "new_by_commande"

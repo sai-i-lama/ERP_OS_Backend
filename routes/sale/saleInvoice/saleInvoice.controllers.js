@@ -167,6 +167,7 @@ const createSingleSaleInvoice = async (req, res) => {
     if (req.authenticatedEntityType === "customer") {
       // Notifier tous les utilisateurs qu'une nouvelle commande a été créée
       await notifyAllUsers(
+        createdInvoice.id,
         `Nouvelle commande créée avec ID : ${createdInvoice.numCommande} par le client ${creatorId}`
       );
     }
@@ -174,6 +175,7 @@ const createSingleSaleInvoice = async (req, res) => {
     if (req.authenticatedEntityType === "user") {
       // Notifier le client associé à la commande
       await notifyUserOrCustomer({
+        saleId: createdInvoice.id,
         customerId: createdInvoice.customer_id,
         message: `Votre commande N°: ${createdInvoice.numCommande} a été créée et la valeur payée est de: ${createdInvoice.paid_amount} fcfa.`,
         type: "order"
@@ -322,16 +324,16 @@ const getAllSaleInvoice = async (req, res) => {
                     role: true
                   }
                 },
-                userCreator:{
-                  select:{
-                    id:true,
-                    username: true,
+                userCreator: {
+                  select: {
+                    id: true,
+                    username: true
                   }
                 },
-                customerCreator:{
-                  select:{
-                    id:true,
-                    username: true,
+                customerCreator: {
+                  select: {
+                    id: true,
+                    username: true
                   }
                 }
               },
@@ -389,16 +391,16 @@ const getAllSaleInvoice = async (req, res) => {
                     role: true
                   }
                 },
-                userCreator:{
-                  select:{
-                    id:true,
-                    username: true,
+                userCreator: {
+                  select: {
+                    id: true,
+                    username: true
                   }
                 },
-                customerCreator:{
-                  select:{
-                    id:true,
-                    username: true,
+                customerCreator: {
+                  select: {
+                    id: true,
+                    username: true
                   }
                 }
               },
@@ -465,10 +467,10 @@ const getAllSaleInvoice = async (req, res) => {
                     username: true
                   }
                 },
-                customerCreator:{
-                  select:{
-                    id:true,
-                    username: true,
+                customerCreator: {
+                  select: {
+                    id: true,
+                    username: true
                   }
                 }
               },
@@ -529,10 +531,10 @@ const getAllSaleInvoice = async (req, res) => {
                     username: true
                   }
                 },
-                customerCreator:{
-                  select:{
-                    id:true,
-                    username: true,
+                customerCreator: {
+                  select: {
+                    id: true,
+                    username: true
                   }
                 }
               },
@@ -926,6 +928,7 @@ const updateSaleInvoice = async (req, res) => {
       if (client) {
         // Assurez-vous que notifyUser accepte l'identifiant du client
         await notifyUserOrCustomer({
+          saleId: updatedInvoice.id,
           customerId: updatedInvoice.customer_id,
           message: `Votre commande N°: ${updatedInvoice.numCommande} est prête.`,
           type: "update_order"
