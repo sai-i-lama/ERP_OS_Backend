@@ -97,7 +97,6 @@ const createSingleCustomer = async (req, res) => {
   }
 };
 
-
 // Fonction pour générer un token de réinitialisation de mot de passe
 const generateResetToken = (customerId) => {
   // Créer un token avec l'ID de l'utilisateur, qui expire dans 1 heure
@@ -128,12 +127,25 @@ const sendTokenResetPassword = async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "Changer votre mot de passe",
-      text: `Pour changer votre mot de passe, cliquez sur ce lien: ${resetUrl}`
+      subject: "Changez votre mot de passe",
+      html: `
+    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+      <h2>Réinitialisation de votre mot de passe</h2>
+      <p>Bonjour,</p>
+      <p>Vous avez demandé à réinitialiser votre mot de passe. Pour ce faire, veuillez cliquer sur le bouton ci-dessous :</p>
+      <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Réinitialiser mon mot de passe</a>
+      <p>Ou copiez-collez ce lien dans votre navigateur :<br> 
+      <a href="${resetUrl}" style="color: #4CAF50;">${resetUrl}</a></p>
+      <p>Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet e-mail.</p>
+      <p>Cordialement,<br>L'équipe de support.</p>
+    </div>
+  `
     });
 
     // Réponse réussie
-    res.json({ message: "Reset link sent" });
+    res.json({
+      message: "le token a été envoyé. consultez votre adresse électronique"
+    });
   } catch (error) {
     console.error("Error in password reset:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -173,7 +185,6 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: "Erreur interne du serveur" });
   }
 };
-
 
 const getAllCustomer = async (req, res) => {
   if (req.query.query === "all") {
