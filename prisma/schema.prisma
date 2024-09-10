@@ -7,31 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-  model user {
-    id             Int            @id @default(autoincrement())
-    username       String
-    password       String
-    role           String
-    email          String?        @unique
-    salary         Int?
-    designation    designation?   @relation(fields: [designation_id], references: [id])
-    designation_id Int?
-    join_date      DateTime?
-    leave_date     DateTime?
-    id_no          String?        @unique
-    department     String?
-    phone          String?        @unique
-    address        String?
-    blood_group    String?
-    image          String?
-    gender         String
-    status         Boolean        @default(true)
-    createdAt      DateTime       @default(now())
-    updatedAt      DateTime       @updatedAt
-    saleInvoice    saleInvoice[]  @relation(name: "UserSaleInvoice")
-    AuditLog       auditLog[]
-    notification   notification[]
-  }
+model user {
+  id             Int            @id @default(autoincrement())
+  username       String
+  password       String
+  role           String
+  email          String?        @unique
+  salary         Int?
+  designation    designation?   @relation(fields: [designation_id], references: [id])
+  designation_id Int?
+  join_date      DateTime?
+  leave_date     DateTime?
+  id_no          String?        @unique
+  department     String?
+  phone          String?        @unique
+  address        String?
+  blood_group    String?
+  image          String?
+  gender         String
+  status         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  saleInvoice    saleInvoice[]  @relation(name: "UserSaleInvoice")
+  AuditLog       auditLog[]
+  notification   notification[]
+}
 
 model auditLog {
   id                  Int       @id @default(autoincrement())
@@ -58,8 +58,8 @@ model customer {
   status              Boolean        @default(true)
   role                String         @default("Particulier")
   gender              String
-  source              String        @default("Stock/E-commerce")
-  appChoice           String        @default("false")
+  source              String         @default("Stock/E-commerce")
+  appChoice           String         @default("false")
   saleInvoice         saleInvoice[]  @relation(name: "CustomerSaleInvoice")
   creatorSaleInvoices saleInvoice[]  @relation(name: "CustomerCreatorSaleInvoice")
   created_at          DateTime       @default(now())
@@ -69,16 +69,18 @@ model customer {
 }
 
 model notification {
-  id        Int      @id @default(autoincrement())
-  customerId     Int?
-  customer  customer? @relation(fields: [customerId], references: [id])
-  userId    Int?
-  user      user?    @relation(fields: [userId], references: [id])
-  message   String
-  type      String
-  createdAt DateTime @default(now())
-  updateAt  DateTime @updatedAt
-  isRead    Boolean  @default(false)
+  id         Int          @id @default(autoincrement())
+  customerId Int?
+  customer   customer?    @relation(fields: [customerId], references: [id])
+  userId     Int?
+  user       user?        @relation(fields: [userId], references: [id])
+  saleId    Int?
+  sale      saleInvoice? @relation(fields: [saleId], references: [id]) // Relation avec l'objet order
+  message    String
+  type       String
+  createdAt  DateTime     @default(now())
+  updateAt   DateTime     @updatedAt
+  isRead     Boolean      @default(false)
 }
 
 model designation {
@@ -175,9 +177,9 @@ model saleInvoice {
   profit             Float
   customer           customer             @relation(name: "CustomerSaleInvoice", fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CustomerSaleInvoiceRelation")
   customer_id        Int
-  creatorType        String               // Type du créateur ("user" ou "customer")
-  userCreatorId      Int?                 // ID de l'utilisateur créateur
-  customerCreatorId  Int?                 // ID du client créateur
+  creatorType        String // Type du créateur ("user" ou "customer")
+  userCreatorId      Int? // ID de l'utilisateur créateur
+  customerCreatorId  Int? // ID du client créateur
   note               String?
   delivred           Boolean              @default(false)
   ready              Boolean              @default(false)
@@ -187,10 +189,10 @@ model saleInvoice {
   returnSaleInvoice  returnSaleInvoice[]
   created_at         DateTime             @default(now())
   updated_at         DateTime             @updatedAt
-  userCreator               user?                @relation(name: "UserSaleInvoice", fields: [userCreatorId], references: [id], map: "UserSaleInvoiceRelation")
-  customerCreator   customer?            @relation(name: "CustomerCreatorSaleInvoice", fields: [customerCreatorId], references: [id], map: "CustomerCreatorSaleInvoiceRelation")
+  userCreator        user?                @relation(name: "UserSaleInvoice", fields: [userCreatorId], references: [id], map: "UserSaleInvoiceRelation")
+  customerCreator    customer?            @relation(name: "CustomerCreatorSaleInvoice", fields: [customerCreatorId], references: [id], map: "CustomerCreatorSaleInvoiceRelation")
+  notification       notification[]
 }
-
 
 model saleInvoiceProduct {
   id                     Int         @id @default(autoincrement())

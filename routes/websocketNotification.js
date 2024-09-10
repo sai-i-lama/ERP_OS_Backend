@@ -85,13 +85,18 @@ io.on("connection", (socket) => {
 });
 
 const notifyUserOrCustomer = async (notificationData) => {
-  const { userId, customerId, message, type } = notificationData;
+  const { saleId, userId, customerId, message, type } = notificationData;
 
   if (userId) {
     // Créer et envoyer une notification pour un utilisateur
     const notification = await prisma.notification.create({
       data: {
-        userId: parseInt(userId, 10),
+        sale: {
+          connect: { id: saleId }
+        },
+        user: {
+          connect: { id: userId }
+        },
         message,
         type,
         isRead: false
@@ -105,7 +110,12 @@ const notifyUserOrCustomer = async (notificationData) => {
     // Créer et envoyer une notification pour un client
     const notification = await prisma.notification.create({
       data: {
-        customerId: parseInt(customerId, 10),
+        sale: {
+          connect: { id: saleId }
+        },
+        customer: {
+          connect: { id: customerId }
+        },
         message,
         type,
         isRead: false
@@ -118,12 +128,17 @@ const notifyUserOrCustomer = async (notificationData) => {
   }
 };
 
-const notifyAllUsers = async (message) => {
+const notifyAllUsers = async (saleId, message) => {
   const users = await prisma.user.findMany();
   for (const user of users) {
     const notification = await prisma.notification.create({
       data: {
-        userId: user.id,
+        sale: {
+          connect: { id: saleId }
+        },
+        user: {
+          connect: { id: user.id }
+        },
         message,
         type: "general",
         isRead: false

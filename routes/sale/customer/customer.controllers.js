@@ -5,6 +5,8 @@ const axios = require("axios");
 require("dotenv").config();
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
+const jwt = require("jsonwebtoken");
+const transporter = require("../../mailer"); // Importez le transporteur Nodemailer
 
 const createSingleCustomer = async (req, res) => {
   if (req.query.query === "deletemany") {
@@ -87,7 +89,6 @@ const createSingleCustomer = async (req, res) => {
           timestamp: new Date()
         }
       });
-
       res.json(createdCustomer);
     } catch (error) {
       res.status(400).json({ message: error.message });
@@ -95,6 +96,84 @@ const createSingleCustomer = async (req, res) => {
     }
   }
 };
+
+
+// Fonction pour générer un token de réinitialisation de mot de passe
+const generateResetToken = (customerId) => {
+  // Créer un token avec l'ID de l'utilisateur, qui expire dans 1 heure
+  return jwt.sign({ id: customerId }, process.env.JWT_SECRET, {
+    expiresIn: "1h"
+  });
+};
+// Route pour envoyer le token de réinitialisation par email
+const sendTokenResetPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Si ce n'est pas un utilisateur, cherchez comme client
+    const customer = await prisma.customer.findUnique({
+      where: {
+        email: email
+      }
+    });
+    // Si l'utilisateur n'existe pas
+    if (!customer) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    // Génération du token de réinitialisation
+    const token = generateResetToken(customer.id); // Appel de la fonction générée ci-dessus
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    // Envoyer l'email de réinitialisation
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Changer votre mot de passe",
+      text: `Pour changer votre mot de passe, cliquez sur ce lien: ${resetUrl}`
+    });
+
+    // Réponse réussie
+    res.json({ message: "Reset link sent" });
+  } catch (error) {
+    console.error("Error in password reset:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+// Route pour réinitialiser le mot de passe avec un token
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    // Décoder le token pour récupérer l'ID de l'utilisateur
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const customerId = decodedToken.id;
+
+    // Cherche le client par ID
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    // Hachage du nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Mise à jour du mot de passe dans la base de données
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ message: "Mot de passe réinitialisé avec succès" });
+  } catch (error) {
+    console.error("Erreur de réinitialisation de mot de passe:", error);
+    res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+};
+
 
 const getAllCustomer = async (req, res) => {
   if (req.query.query === "all") {
@@ -436,4 +515,6 @@ module.exports = {
   getSingleCustomer,
   updateSingleCustomer,
   deleteSingleCustomer,
+  sendTokenResetPassword,
+  resetPassword
 };
