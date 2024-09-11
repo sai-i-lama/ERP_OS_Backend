@@ -134,8 +134,6 @@ const sendTokenResetPassword = async (req, res) => {
       <p>Bonjour,</p>
       <p>Vous avez demandé à réinitialiser votre mot de passe. Pour ce faire, veuillez cliquer sur le bouton ci-dessous :</p>
       <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Réinitialiser mon mot de passe</a>
-      <p>Ou copiez-collez ce lien dans votre navigateur :<br> 
-      <a href="${resetUrl}" style="color: #4CAF50;">${resetUrl}</a></p>
       <p>Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet e-mail.</p>
       <p>Cordialement,<br>L'équipe de support.</p>
     </div>
@@ -179,7 +177,7 @@ const resetPassword = async (req, res) => {
       data: { password: hashedPassword }
     });
 
-    res.json({ message: "Mot de passe réinitialisé avec succès" });
+    res.json({ message: "Mot de passe réinitialisé avec succès"});
   } catch (error) {
     console.error("Erreur de réinitialisation de mot de passe:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
