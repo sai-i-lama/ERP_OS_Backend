@@ -14,7 +14,7 @@ const createSingleSaleInvoice = async (req, res) => {
       saleInvoiceProduct,
       date,
       discount,
-      paid_amount,
+      given_amount,
       numCommande,
       note,
       type_saleInvoice
@@ -94,22 +94,36 @@ const createSingleSaleInvoice = async (req, res) => {
     // Convert date to specific format
     const formattedDate = new Date(date).toISOString().split("T")[0];
 
+    
     // Initialize variables
-    let total_amount, due_amount, profit;
+    let total_amount, due_amount, profit, amount_refunded, paid_amount;
 
     // Determine calculations based on invoice type
     if (type_saleInvoice === "matière_première") {
       total_amount = totalPurchasePrice;
-      due_amount = total_amount - parseFloat(discount) - total_amount; // Will be zero or negative
+      due_amount = total_amount - parseFloat(discount); // Corrigé
       profit = 0;
     } else if (type_saleInvoice === "produit_fini") {
       total_amount = totalSalePrice;
-      profit = totalSalePrice - parseFloat(discount) - totalPurchasePrice;
-      due_amount =
-        totalSalePrice - parseFloat(discount) - parseFloat(paid_amount);
+      // 1. Appliquer la remise
+      const total_after_discount = total_amount - parseFloat(discount);
+
+      // 2. Calculer le montant payé et le montant remboursé
+      if (given_amount >= total_after_discount) {
+        paid_amount = total_after_discount; // Le client a donné suffisamment
+        amount_refunded = given_amount - total_after_discount; // Excédent à rembourser
+        due_amount = 0; // Rien à devoir, facture payée
+      } else {
+        paid_amount = given_amount; // Le montant payé est ce que le client a donné
+        amount_refunded = 0; // Pas de remboursement
+        due_amount = total_after_discount - given_amount; // Montant encore dû
+      }
+      // 3. Calculer le profit (si applicable)
+      profit = total_after_discount - totalPurchasePrice;
     } else {
       return res.status(400).json({ error: "Type de facture non valide" });
     }
+
 
     // Créez la facture si toutes les validations sont passées
     const createdInvoice = await prisma.saleInvoice.create({
@@ -118,7 +132,9 @@ const createSingleSaleInvoice = async (req, res) => {
         total_amount: total_amount,
         type_saleInvoice: type_saleInvoice,
         discount: parseFloat(discount),
-        paid_amount: parseFloat(paid_amount),
+        paid_amount: paid_amount,
+        given_amount: parseFloat(given_amount) || null, // Ajout du montant donné par le client
+        amount_refunded: amount_refunded || null, // Ajout du montant remboursé
         numCommande: numCommande,
         profit: profit,
         due_amount: due_amount,
