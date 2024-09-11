@@ -21,7 +21,8 @@ const allowedOrigins = [
   "http://localhost:8080",
   "https://erp-os-frontend.vercel.app",
   "http://192.168.1.176:3000",
-  "http://192.168.1.176:5000"
+  "http://192.168.1.176:5000",
+  "http://192.168.1.176:5001"
 ];
 
 const io = socketIo(server, {
