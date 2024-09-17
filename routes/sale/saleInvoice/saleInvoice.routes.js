@@ -4,6 +4,7 @@ const {
   getAllSaleInvoice,
   getSingleSaleInvoice,
   updateSaleInvoice,
+  cancelOrDeleteSaleInvoice,
 } = require("./saleInvoice.controllers");
 const authorize = require("../../../utils/authorize"); // authentication middleware
 
@@ -23,6 +24,9 @@ saleInvoiceRoutes.get(
 saleInvoiceRoutes.patch(
   "/:id", authorize('chekSaleInvoice'),
   updateSaleInvoice
+);
+saleInvoiceRoutes.delete(
+  "/:id", cancelOrDeleteSaleInvoice
 );
 
 module.exports = saleInvoiceRoutes;

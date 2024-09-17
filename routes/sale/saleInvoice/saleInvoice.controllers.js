@@ -94,7 +94,6 @@ const createSingleSaleInvoice = async (req, res) => {
     // Convert date to specific format
     const formattedDate = new Date(date).toISOString().split("T")[0];
 
-    
     // Initialize variables
     let total_amount, due_amount, profit, amount_refunded, paid_amount;
 
@@ -123,7 +122,6 @@ const createSingleSaleInvoice = async (req, res) => {
     } else {
       return res.status(400).json({ error: "Type de facture non valide" });
     }
-
 
     // Créez la facture si toutes les validations sont passées
     const createdInvoice = await prisma.saleInvoice.create({
@@ -988,9 +986,70 @@ const updateSaleInvoice = async (req, res) => {
   }
 };
 
+const cancelOrDeleteSaleInvoice = async (req, res) => {
+  try {
+    const { id } = req.params; // Utiliser "id" 
+
+    // Afficher l'ID pour vérifier sa réception
+    console.log("ID de la facture reçu : ", id);
+
+    // Convertir en entier et vérifier si c'est un nombre valide
+    const invoiceIdNumber = Number(id);
+
+    if (isNaN(invoiceIdNumber)) {
+      return res.status(400).json({ error: "ID de facture invalide" });
+    }
+
+    // Récupérer les produits associés à la facture
+    const saleInvoiceProducts = await prisma.saleInvoiceProduct.findMany({
+      where: {
+        invoice_id: invoiceIdNumber // Utiliser l'ID converti
+      },
+      include: {
+        product: true // Inclure les détails des produits
+      }
+    });
+
+    // Restaurer les quantités en stock
+    for (const saleInvoiceProduct of saleInvoiceProducts) {
+      await prisma.product.update({
+        where: {
+          id: saleInvoiceProduct.product_id
+        },
+        data: {
+          quantity:
+            saleInvoiceProduct.product.quantity +
+            saleInvoiceProduct.product_quantity
+        }
+      });
+    }
+
+    // Supprimer la facture
+    await prisma.saleInvoice.delete({
+      where: {
+        id: invoiceIdNumber
+      }
+    });
+
+    console.log(
+      `La commande avec l'ID ${id} a été annulée et les produits ont été restaurés en stock.`
+    );
+    return res.status(200).json({
+      message: "Facture mise à jour avec succès",
+      data: saleInvoiceProducts
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'annulation de la commande : ", error);
+    return res
+      .status(500)
+      .json({ error: "Erreur lors de l'annulation de la commande." });
+  }
+};
+
 module.exports = {
   createSingleSaleInvoice,
   getAllSaleInvoice,
   getSingleSaleInvoice,
-  updateSaleInvoice
+  updateSaleInvoice,
+  cancelOrDeleteSaleInvoice
 };
