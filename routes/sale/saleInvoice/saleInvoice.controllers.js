@@ -100,8 +100,10 @@ const createSingleSaleInvoice = async (req, res) => {
     // Determine calculations based on invoice type
     if (type_saleInvoice === "matière_première") {
       total_amount = totalPurchasePrice;
-      due_amount = total_amount - parseFloat(discount); // Corrigé
+      due_amount = 0; // Corrigé
       profit = 0;
+      amount_refunded = 0;
+      paid_amount=total_amount;
     } else if (type_saleInvoice === "produit_fini") {
       total_amount = totalSalePrice;
       // 1. Appliquer la remise
