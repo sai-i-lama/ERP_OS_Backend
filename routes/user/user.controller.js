@@ -102,12 +102,36 @@ const login = async (req, res) => {
 
 const register = async (req, res) => {
   try {
-    const join_date = new Date(req.body.join_date).toISOString().split("T")[0];
-    const leave_date = new Date(req.body.leave_date)
-      .toISOString()
-      .split("T")[0];
+    // Vérifier les champs obligatoires
+    if (
+      !req.body.username ||
+      !req.body.password ||
+      !req.body.email ||
+      !req.body.role
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Les champs obligatoires sont manquants." });
+    }
 
+    // Convertir les dates et vérifier la validité
+    const join_date = req.body.join_date
+      ? new Date(req.body.join_date).toISOString().split("T")[0]
+      : null;
+    const leave_date = req.body.leave_date
+      ? new Date(req.body.leave_date).toISOString().split("T")[0]
+      : null;
+
+    if (!join_date || !leave_date) {
+      return res
+        .status(400)
+        .json({ message: "Les dates ne sont pas valides." });
+    }
+
+    // Hasher le mot de passe
     const hash = await bcrypt.hash(req.body.password, saltRounds);
+
+    // Créer l'utilisateur
     const createUser = await prisma.user.create({
       data: {
         username: req.body.username,
@@ -133,6 +157,7 @@ const register = async (req, res) => {
       }
     });
 
+    // Créer un audit log
     await prisma.auditLog.create({
       data: {
         action: "CREATION DU PERSONNEL",
@@ -147,16 +172,21 @@ const register = async (req, res) => {
           req.authenticatedEntityType === "customer"
             ? req.authenticatedEntity.id
             : null,
-        oldValues: undefined, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        oldValues: undefined,
         newValues: createUser,
         timestamp: new Date()
       }
     });
 
+    // Supprimer le mot de passe du retour
     const { password, ...userWithoutPassword } = createUser;
     res.json(userWithoutPassword);
   } catch (error) {
-    res.status(500).json(error.response ? error.response.data : error.message);
+    console.error("Erreur lors de l'enregistrement :", error); // Ajoutez un log d'erreur
+    res.status(500).json({
+      message: "Erreur interne du serveur.",
+      error: error.message || error // Retourner un message d'erreur plus précis
+    });
   }
 };
 
