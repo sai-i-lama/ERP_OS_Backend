@@ -52,6 +52,7 @@ model customer {
   id                  Int            @id @default(autoincrement())
   username            String
   phone               String         @unique
+  sku                 String?        @unique
   address             String
   password            String
   email               String?        @unique
