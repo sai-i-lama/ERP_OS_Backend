@@ -15,7 +15,8 @@ const getDashboardData = async (req, res) => {
         date: {
           gte: new Date(req.query.startdate),
           lte: new Date(req.query.enddate)
-        }
+        },
+        type_saleInvoice: "produit_fini"
       },
       _sum: {
         total_amount: true,

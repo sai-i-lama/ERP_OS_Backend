@@ -59,7 +59,12 @@ let allowedOrigins = [
   "http://192.168.1.176",
   "http://192.168.1.176:8000",
   "http://192.168.1.176:5000",
-  "http://192.168.1.176:3001"
+  "http://192.168.1.176:3001",
+
+  // machine perso
+  "http://192.168.1.11:3001",
+  "http://192.168.1.11:5000",
+  "http://192.168.1.11:8000"
 ];
 
 // limit the number of requests from a single IP address

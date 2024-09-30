@@ -13,16 +13,29 @@ app.use(cors());
 const allowedOrigins = [
   "http://localhost:3001",
   "http://127.0.0.1:3001",
+
   "http://localhost:5001",
   "http://localhost:5000",
+
   "http://localhost:8000",
   "http://127.0.0.1:8000",
+
   "http://127.0.0.1:8080",
   "http://localhost:8080",
+
   "https://erp-os-frontend.vercel.app",
   "http://192.168.1.176:3000",
   "http://192.168.1.176:5000",
-  "http://192.168.1.176:5001"
+
+  "http://192.168.1.176:5001",
+
+
+// machine perso
+  "http://192.168.1.11",
+  "http://192.168.1.11:3001",
+  "http://192.168.1.11:5000",
+  "http://192.168.1.11:5001",
+  "http://192.168.1.11:8000"
 ];
 
 const io = socketIo(server, {

@@ -34,7 +34,8 @@ const createSingleCustomer = async (req, res) => {
           role: customer.role,
           password: customer.password,
           email: customer.email,
-          status: customer.status
+          status: customer.status,
+          sku: customer.sku
         })),
         skipDuplicates: true
       });
@@ -66,7 +67,8 @@ const createSingleCustomer = async (req, res) => {
           email: req.body.email,
           status: req.body.status,
           gender: req.body.gender,
-          source: req.body.source
+          source: req.body.source,
+          sku: req.body.sku
         }
       });
 
@@ -177,7 +179,7 @@ const resetPassword = async (req, res) => {
       data: { password: hashedPassword }
     });
 
-    res.json({ message: "Mot de passe réinitialisé avec succès"});
+    res.json({ message: "Mot de passe réinitialisé avec succès" });
   } catch (error) {
     console.error("Erreur de réinitialisation de mot de passe:", error);
     res.status(500).json({ error: "Erreur interne du serveur" });
@@ -189,6 +191,44 @@ const getAllCustomer = async (req, res) => {
     try {
       // get all customer
       const allCustomer = await prisma.customer.findMany({
+        orderBy: {
+          id: "asc"
+        },
+        include: {
+          saleInvoice: true
+        }
+      });
+      res.json(allCustomer);
+    } catch (error) {
+      res.status(400).json(error.message);
+      console.log(error.message);
+    }
+  } else if (req.query.query === "search") {
+    try {
+      // get all customer
+      const allCustomer = await prisma.customer.findMany({
+        where: {
+          OR: [
+            {
+              username: {
+                contains: req.query.cus,
+                mode: "insensitive"
+              }
+            },
+            {
+              email: {
+                contains: req.query.cus,
+                mode: "insensitive"
+              }
+            },
+            {
+              sku: {
+                contains: req.query.cus,
+                mode: "insensitive"
+              }
+            }
+          ]
+        },
         orderBy: {
           id: "asc"
         },
