@@ -30,6 +30,7 @@ const accountRoutes = require("./routes/accounting/account/account.routes");
 const settingRoutes = require("./routes/setting/setting.routes");
 const smsRouter = require("./routes/sms/sms.routes");
 const getAuditLogs = require("./routes/AuditLog/auditlog.routes");
+const { lotProductRoute } = require("./routes/inventory/lotProduct/lotProduct.routes");
 /* variables */
 // express app instance
 const app = express();
@@ -62,9 +63,9 @@ let allowedOrigins = [
   "http://192.168.1.176:3001",
 
   // machine perso
-  "http://192.168.1.11:3001",
-  "http://192.168.1.11:5000",
-  "http://192.168.1.11:8000"
+  "http://192.168.1.100:3001",
+  "http://192.168.1.100:5000",
+  "http://192.168.1.100:8000"
 ];
 
 // limit the number of requests from a single IP address
@@ -135,5 +136,6 @@ app.use("/v1/account", accountRoutes);
 app.use("/v1/setting", settingRoutes);
 app.use("/v1/sms", smsRouter);
 app.use("/v1/audit-logs", getAuditLogs);
+app.use("/v1/lot-product", lotProductRoute);
 
 module.exports = app;

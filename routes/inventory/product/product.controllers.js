@@ -68,12 +68,13 @@ const createSingleProduct = async (req, res) => {
     try {
       const file = req.file;
       console.log("req.auth:", req.auth); // Debugging log
+      const newQuantity = parseInt(req.body.quantity);
 
       // Création du produit
       const createdProduct = await prisma.product.create({
         data: {
           name: req.body.name || null,
-          quantity: parseInt(req.body.quantity) || null,
+          quantity: newQuantity || null,
           purchase_price: parseFloat(req.body.purchase_price) || null,
           sale_price: parseFloat(req.body.sale_price) || null,
           imageName: file.filename,
@@ -92,6 +93,26 @@ const createSingleProduct = async (req, res) => {
           unit_type: req.body.unit_type || null,
           type_product: req.body.type_product || null,
           reorder_quantity: parseInt(req.body.reorder_quantity) || null
+        }
+      });
+
+      // Récupérer le nombre de lots existants pour ce produit
+      const existingLotsCount = await prisma.lot.count({
+        where: { productId: createdProduct.id }
+      });
+
+      // Incrémenter le numéro de lot
+      const nextLotNumber = existingLotsCount + 1;
+
+      // Création du nouveau lot
+      const newLot = await prisma.lot.create({
+        data: {
+          productId: createdProduct.id,
+          initialQuantity: newQuantity,
+          quantityInStock: newQuantity, // Initialement, c'est la même que la quantité ajoutée
+          sku: `${createdProduct.sku}-Lot${nextLotNumber}`, // SKU unique pour le lot
+          productionDate: new Date(req.body.productionDate), // Date de production
+          expirationDate: new Date(req.body.expirationDate) // Date d'expiration
         }
       });
 
@@ -133,7 +154,12 @@ const createSingleProduct = async (req, res) => {
         }
       });
 
-      res.json(createdProduct);
+      // Retourner les informations du produit et du lot
+      res.json({
+        product: createdProduct,
+        lot: newLot
+      });
+      console.log(createdProduct);
     } catch (error) {
       res.status(400).json(error.message);
       console.log(error.message);
@@ -319,6 +345,9 @@ const getSingleProduct = async (req, res) => {
     const singleProduct = await prisma.product.findUnique({
       where: {
         id: Number(req.params.id)
+      },
+      include: {
+        Lots: true
       }
     });
     if (singleProduct && singleProduct.imageName) {
@@ -333,31 +362,65 @@ const getSingleProduct = async (req, res) => {
 
 const updateSingleProduct = async (req, res) => {
   try {
+    // Récupérer les anciennes valeurs du produit avant mise à jour
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    // Vérifier si le produit existe
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Produit non trouvé" });
+    }
+
+    // Vérifier si la quantité a été modifiée
+    const newQuantity = parseInt(req.body.quantity);
+    const quantityChanged = newQuantity !== existingProduct.quantity;
+
+    // Mettre à jour le produit avec la nouvelle quantité
     const updatedProduct = await prisma.product.update({
       where: {
         id: Number(req.params.id)
       },
       data: {
         name: req.body.name,
-        quantity: parseInt(req.body.quantity),
+        quantity: newQuantity, // Quantité totale après ajout
         purchase_price: parseFloat(req.body.purchase_price),
-        sale_price: parseFloat(req.body.sale_price)
+        sale_price: parseFloat(req.body.sale_price),
+        updated_at: new Date()
       }
     });
 
-    // Récupérer les anciennes valeurs du produit
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: Number(req.params.id) }
+    // Récupérer le nombre de lots existants pour ce produit
+    const existingLotsCount = await prisma.lot.count({
+      where: { productId: updatedProduct.id }
     });
 
-    // Vérifier si le client existe
-    if (!existingProduct) {
-      return res.status(404).json({ message: "Produit non trouvé" });
+    // Incrémenter le numéro de lot
+    const nextLotNumber = existingLotsCount + 1;
+
+    // Créer un nouveau lot avec la quantité ajoutée si la quantité a changé
+    if (quantityChanged) {
+      const quantity_lot = newQuantity - existingProduct.quantity;
+
+      const lot = await prisma.lot.create({
+        data: {
+          product: {
+            connect: { id: updatedProduct.id } // Relier le lot au produit
+          },
+          initialQuantity: quantity_lot, // Quantité ajoutée
+          quantityInStock: quantity_lot, // Quantité disponible pour ce lot
+          sku: `${updatedProduct.sku}-Lot${nextLotNumber}`, // SKU unique avec numéro de lot
+          productionDate: new Date(req.body.productionDate), // Date de production
+          expirationDate: new Date(req.body.expirationDate) // Date d'expiration
+        }
+      });
+      console.log(lot);
     }
 
+    // Créer une entrée dans l'audit log pour la mise à jour
     await prisma.auditLog.create({
       data: {
-        action: actionType,
+        action: "Mise à jour du produit",
         auditableId: updatedProduct.id,
         auditableModel: "Produits",
         ActorAuditableModel: req.authenticatedEntityType,
@@ -369,7 +432,7 @@ const updateSingleProduct = async (req, res) => {
           req.authenticatedEntityType === "customer"
             ? req.authenticatedEntity.id
             : null,
-        oldValues: existingProduct, // Les anciennes valeurs ne sont pas nécessaires pour la création
+        oldValues: existingProduct,
         newValues: updatedProduct,
         timestamp: new Date()
       }
@@ -396,9 +459,9 @@ const deleteSingleProduct = async (req, res) => {
     // if (deletedProduct && deletedProduct.imageName) {
     //   await deleteFile(deletedProduct.imageName);
     // }
-    
-     // Récupérer les anciennes valeurs du produit
-     const existingProduct = await prisma.product.findUnique({
+
+    // Récupérer les anciennes valeurs du produit
+    const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) }
     });
 

@@ -164,11 +164,8 @@ const getDashboardData = async (req, res) => {
     );
     //==========================================================================================================
     //========================================Produits les Plus vendus==========================================
-    // Étape 1 : Obtenir les prix totaux vendus pour tous les produits
-    const totalQuantity = await prisma.saleInvoiceProduct.aggregate({
-      _sum: {
-        product_sale_price: true
-      },
+    // Étape 1 : Récupérer toutes les lignes nécessaires
+    const saleInvoiceProducts = await prisma.saleInvoiceProduct.findMany({
       where: {
         invoice: {
           date: {
@@ -176,61 +173,64 @@ const getDashboardData = async (req, res) => {
             lte: new Date(req.query.enddate)
           }
         },
-        product: { type_product: "Produit fini" }
+        product: {
+          type_product: "Produit fini"
+        }
+      },
+      select: {
+        product_quantity: true,
+        product_sale_price: true,
+        product_id: true
       }
     });
 
-    const totalQuantitySold = totalQuantity._sum.product_sale_price;
+    // Étape 2 : Calculer la somme totale des ventes (product_quantity * product_sale_price)
+    const totalSales = saleInvoiceProducts.reduce((acc, item) => {
+      return acc + item.product_quantity * item.product_sale_price;
+    }, 0);
 
-    // Étape 2 : Obtenir les produits les plus vendus
-    const topSellingProducts = await prisma.saleInvoiceProduct.groupBy({
-      by: ["product_id"],
+    // Étape 3 : Obtenir les produits les plus vendus (en calculant la somme des ventes par produit)
+    const salesByProduct = saleInvoiceProducts.reduce((acc, item) => {
+      const totalSaleValue = item.product_quantity * item.product_sale_price;
+
+      if (acc[item.product_id]) {
+        acc[item.product_id] += totalSaleValue;
+      } else {
+        acc[item.product_id] = totalSaleValue;
+      }
+
+      return acc;
+    }, {});
+
+    // Étape 4 : Récupérer les IDs des produits les plus vendus (convertis en entiers)
+    const topProductIds = Object.keys(salesByProduct)
+      .sort((a, b) => salesByProduct[b] - salesByProduct[a])
+      .slice(0, 5)
+      .map((id) => parseInt(id, 10)); // Conversion en entier
+
+    // Étape 5 : Récupérer les détails des produits les plus vendus
+    const topSellingProducts = await prisma.product.findMany({
       where: {
-        invoice: {
-          date: {
-            gte: new Date(req.query.startdate),
-            lte: new Date(req.query.enddate)
-          }
-        },
-        product: { type_product: "Produit fini" }
-      },
-      _sum: { product_sale_price: true },
-      orderBy: { _sum: { product_sale_price: "desc" } },
-      take: 5
+        id: { in: topProductIds }
+      }
     });
 
-    const productDetails = await prisma.product.findMany({
-      where: { id: { in: topSellingProducts.map((p) => p.product_id) } }
-    });
+    // Étape 6 : Calculer les pourcentages et associer les données
+    const productsWithPercentages = topSellingProducts.map((product) => {
+      const totalSaleValue = salesByProduct[product.id];
+      const percentage = ((totalSaleValue / totalSales) * 100).toFixed(2);
 
-    const productsWithQuantities = productDetails.map((product) => {
-      const productData = topSellingProducts.find(
-        (p) => p.product_id === product.id
-      );
       return {
         ...product,
-        quantitySold: productData._sum.product_sale_price
-      };
-    });
-
-    // Étape 3 : Calculer les pourcentages
-    const productsWithPercentages = productsWithQuantities.map((product) => {
-      const percentage = (
-        (product.quantitySold / totalQuantitySold) *
-        100
-      ).toFixed(2);
-      return {
-        ...product,
+        totalSaleValue,
         percentageSold: parseFloat(percentage)
       };
     });
 
-    // Étape 4 : Sélectionner les 4 produits avec les pourcentages les plus élevés
+    // Étape 7 : Sélectionner les 4 produits avec les pourcentages les plus élevés
     const top4Products = productsWithPercentages
       .sort((a, b) => b.percentageSold - a.percentageSold)
       .slice(0, 4);
-
-    
 
     //=========================================================================================
     //==================================cardInfo===============================================
@@ -277,11 +277,103 @@ const getDashboardData = async (req, res) => {
       sale_profit: Number(saleInfo._sum.profit)
     };
 
+    // user éffectuant le plus de vente
+    const allGenerateSaleInvoiceByGroup = await prisma.saleInvoice.groupBy({
+      by: ["userCreatorId"],
+      _sum: {
+        total_amount: true,
+        profit: true
+      },
+      _count: {
+        id: true
+      },
+      orderBy: {
+        _sum: {
+          total_amount: "desc" // Tri décroissant par total_amount
+        }
+      },
+      where: {
+        date: {
+          gte: new Date(req.query.startdate),
+          lte: new Date(req.query.enddate)
+        },
+        type_saleInvoice: "produit_fini"
+      }
+    });
+    // format response data for data visualization chart in antd
+    const formattedData8 = await Promise.all(
+      allGenerateSaleInvoiceByGroup.map(async (item) => {
+        if (item.userCreatorId) {
+          const user = await prisma.user.findUnique({
+            where: { id: item.userCreatorId }
+          });
+          return {
+            label: user ? user.username : "Unknown User", // Gérer les cas où l'utilisateur n'est pas trouvé
+            type: "ventes",
+            value: item._sum.total_amount
+          };
+        }
+        return {
+          label: "Unknown User", // Si userCreatorId est null
+          type: "ventes",
+          value: item._sum.total_amount
+        };
+      })
+    );
+
+    const formattedData9 = await Promise.all(
+      allGenerateSaleInvoiceByGroup.map(async (item) => {
+        if (item.userCreatorId) {
+          const user = await prisma.user.findUnique({
+            where: { id: item.userCreatorId }
+          });
+          return {
+            label: user ? user.username : "Unknown User",
+            type: "Profits",
+            value: item._sum.profit
+          };
+        }
+        return {
+          label: "Unknown User",
+          type: "Profits",
+          value: item._sum.profit
+        };
+      })
+    );
+
+    const formattedData10 = await Promise.all(
+      allGenerateSaleInvoiceByGroup.map(async (item) => {
+        if (item.userCreatorId) {
+          const user = await prisma.user.findUnique({
+            where: { id: item.userCreatorId }
+          });
+          return {
+            label: user ? user.username : "Unknown User",
+            type: "Nombre de ventes",
+            value: item._count.id
+          };
+        }
+        return {
+          label: "Unknown User",
+          type: "Nombre de ventes",
+          value: item._count.id
+        };
+      })
+    );
+
+    // concat formatted data
+    const userSaleProfit = [
+      ...formattedData8,
+      ...formattedData9,
+      ...formattedData10
+    ].sort((a, b) => a.value - b.value);
+
     res.json({
       saleProfitCount,
       SupplierVSCustomer,
       customerSaleProfit,
       cardInfo,
+      userSaleProfit,
       top4Products
     });
   } catch (error) {

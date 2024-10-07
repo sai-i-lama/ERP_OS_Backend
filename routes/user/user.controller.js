@@ -79,7 +79,7 @@ const login = async (req, res) => {
       const token = jwt.sign(
         { sub: user.id, permissions, role: user.role, userType: userType }, // Ajoutez `userType` pour indiquer le type d'entité
         secret,
-        { expiresIn: "1m"}
+        { expiresIn: "24h"}
       );
 
       // Supprimez le mot de passe avant de renvoyer les informations de l'utilisateur

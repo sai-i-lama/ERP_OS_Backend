@@ -69,12 +69,19 @@ const createSingleSaleInvoice = async (req, res) => {
         parseFloat(item.product_sale_price) * parseFloat(item.product_quantity);
     });
 
-    // Get all products asynchronously
+    // Récupérer les produits et leurs lots
     const allProduct = await Promise.all(
       saleInvoiceProduct.map(async (item) => {
         const product = await prisma.product.findUnique({
           where: {
             id: Number(item.product_id)
+          },
+          include: {
+            Lots: {
+              orderBy: {
+                createdAt: "asc" // Trier par date de production, du plus ancien au plus récent
+              }
+            }
           }
         });
         if (!product) {
@@ -103,7 +110,7 @@ const createSingleSaleInvoice = async (req, res) => {
       due_amount = 0; // Corrigé
       profit = 0;
       amount_refunded = 0;
-      paid_amount=total_amount;
+      paid_amount = total_amount;
     } else if (type_saleInvoice === "produit_fini") {
       total_amount = totalSalePrice;
       // 1. Appliquer la remise
@@ -256,6 +263,43 @@ const createSingleSaleInvoice = async (req, res) => {
         })
       )
     );
+
+    // Mise à jour des lots et des quantités en stock
+    for (const item of saleInvoiceProduct) {
+      let remainingQuantity = item.product_quantity;
+
+      // Parcourir les lots les plus anciens pour ce produit
+      const productWithLots = allProduct.find(
+        (p) => p.id === Number(item.product_id)
+      );
+
+      if (productWithLots && productWithLots.Lots) {
+        // S'assurer qu'il y a des lots associés
+        for (const lot of productWithLots.Lots) {
+          if (remainingQuantity > 0 && lot.quantityInStock > 0) {
+            const quantityToDeduct = Math.min(
+              lot.quantityInStock,
+              remainingQuantity
+            );
+
+            // Mise à jour de la quantité restante dans le lot
+            await prisma.lot.update({
+              where: {
+                id: lot.id
+              },
+              data: {
+                quantityInStock: {
+                  decrement: quantityToDeduct
+                }
+              }
+            });
+
+            // Mettre à jour la quantité restante à déduire
+            remainingQuantity -= quantityToDeduct;
+          }
+        }
+      }
+    }
 
     console.log(createdInvoice);
     res.json({
@@ -990,7 +1034,7 @@ const updateSaleInvoice = async (req, res) => {
 
 const cancelOrDeleteSaleInvoice = async (req, res) => {
   try {
-    const { id } = req.params; // Utiliser "id" 
+    const { id } = req.params; // Utiliser "id"
 
     // Afficher l'ID pour vérifier sa réception
     console.log("ID de la facture reçu : ", id);
