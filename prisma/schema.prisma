@@ -75,8 +75,8 @@ model notification {
   customer   customer?    @relation(fields: [customerId], references: [id])
   userId     Int?
   user       user?        @relation(fields: [userId], references: [id])
-  saleId    Int?
-  sale      saleInvoice? @relation(fields: [saleId], references: [id]) // Relation avec l'objet order
+  saleId     Int?
+  sale       saleInvoice? @relation(fields: [saleId], references: [id]) // Relation avec l'objet order
   message    String
   type       String
   createdAt  DateTime     @default(now())
@@ -115,6 +115,20 @@ model product {
   product_category             product_category?              @relation(fields: [product_category_id], references: [id])
   created_at                   DateTime                       @default(now())
   updated_at                   DateTime                       @updatedAt
+  Lots                         Lot[]
+}
+
+model Lot {
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  product         product  @relation(fields: [productId], references: [id]) // Relation avec Product
+  initialQuantity Int // Quantité initiale ajoutée
+  quantityInStock Int // Quantité restante dans le lot
+  sku             String   @unique // SKU unique pour chaque lot
+  productionDate  DateTime? // Date de production
+  expirationDate  DateTime? // Date d'expiration
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model product_category {
