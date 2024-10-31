@@ -189,6 +189,10 @@ const getDashboardData = async (req, res) => {
       return acc + item.product_quantity * item.product_sale_price;
     }, 0);
 
+    // const totalPurchase = saleInvoiceProducts.reduce((acc, item) => {
+    //   return acc + allProduct[index].purchase_price * item.product_quantity;
+    // }, 0);
+
     // Étape 3 : Obtenir les produits les plus vendus (en calculant la somme des ventes par produit)
     const salesByProduct = saleInvoiceProducts.reduce((acc, item) => {
       const totalSaleValue = item.product_quantity * item.product_sale_price;
