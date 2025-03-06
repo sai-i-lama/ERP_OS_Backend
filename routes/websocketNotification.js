@@ -13,6 +13,8 @@ app.use(cors());
 const allowedOrigins = [
   "http://localhost:3001",
   "http://127.0.0.1:3001",
+ // "http://localhost",
+  //"http://127.0.0.1",
 
   "http://localhost:5001",
   "http://localhost:5000",

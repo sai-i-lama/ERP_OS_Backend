@@ -154,10 +154,10 @@ const settings = {
   company_name: "sai i lama",
   address: "Etoa Meki",
   phone: "693972665",
-  email: "contact@sai-i-lama.gamil",
+  email: "contact@sai-i-lama.gmail",
   website: "My Website",
   footer: "©2023 sai i lama",
-  tag_line: "votre sante est notre priorité",
+  tag_line: "Le bien-être est notre prédilection",
 };
 
 const professionalPermissions = [

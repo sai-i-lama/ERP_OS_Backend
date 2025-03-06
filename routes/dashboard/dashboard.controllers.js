@@ -252,7 +252,9 @@ const getDashboardData = async (req, res) => {
           gte: new Date(req.query.startdate),
           lte: new Date(req.query.enddate)
         }
+        
       }
+      
     });
     const saleInfo = await prisma.saleInvoice.aggregate({
       _count: {
@@ -272,13 +274,35 @@ const getDashboardData = async (req, res) => {
         type_saleInvoice: "produit_fini"
       }
     });
+
+    const saleInfoMP = await prisma.product.findMany({
+      where: {
+        created_at: {
+          gte: new Date(req.query.startdate),
+          lte: new Date(req.query.enddate)
+        },
+        type_product: "matière première"
+      },
+      select: {
+        purchase_price: true,
+        quantity: true
+      }
+    });
+    
+    // Calcul de la somme (purchase_price * quantity)
+    const sale_totalMP = saleInfoMP.reduce((total, product) => {
+      return total + (product.purchase_price * product.quantity);
+    }, 0);
     // concat 2 object
     const cardInfo = {
       purchase_count: purchaseInfo._count.id,
       purchase_total: Number(purchaseInfo._sum.total_amount),
       sale_count: saleInfo._count.id,
       sale_total: Number(saleInfo._sum.total_amount),
-      sale_profit: Number(saleInfo._sum.profit)
+      sale_profit: Number(saleInfo._sum.profit),
+      sale_countMP: saleInfoMP.length,
+      sale_totalMP: sale_totalMP
+     
     };
 
     // user éffectuant le plus de vente
