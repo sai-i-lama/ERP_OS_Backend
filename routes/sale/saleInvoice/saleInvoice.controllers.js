@@ -894,7 +894,7 @@ const getSingleSaleInvoice = async (req, res) => {
       (acc, curr) => acc + curr.amount,
       0
     );
-    let status = "INPAYÉ";
+    let status = "IMPAYÉ";
     // sum total amount of all transactions
     const totalPaidAmount = transactions2.reduce(
       (acc, item) => acc + item.amount,
